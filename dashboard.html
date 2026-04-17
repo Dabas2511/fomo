@@ -333,6 +333,86 @@
 
   .history-chart { height: 200px; }
 
+  /* Changes panel */
+  .changes-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow:hidden; margin-bottom: 24px;
+  }
+  .time-window-tabs { display: flex; gap: 4px; }
+  .tw-tab {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font-family: var(--mono); font-size: 11px;
+    padding: 5px 12px; border-radius: 6px; cursor: pointer;
+    font-weight: 500; letter-spacing: 0.5px; transition: all 0.15s;
+  }
+  .tw-tab:hover { color: var(--text); border-color: var(--border-hover); }
+  .tw-tab.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+  .changes-summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px; margin-bottom: 20px;
+  }
+  .change-metric {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 14px 16px;
+  }
+  .change-metric-label {
+    font-family: var(--mono); font-size: 9.5px; color: var(--text-dim);
+    letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .change-metric-val {
+    font-family: var(--mono); font-size: 20px; font-weight: 500; letter-spacing: -0.3px;
+  }
+  .change-metric-val.positive { color: var(--success); }
+  .change-metric-val.negative { color: var(--danger); }
+  .change-metric-val.neutral { color: var(--text-dim); }
+  .change-metric-sub {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top: 4px;
+  }
+
+  .changes-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    margin-top: 20px;
+  }
+  @media (max-width: 840px) { .changes-grid { grid-template-columns: 1fr; } }
+
+  .change-section { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+  .change-section-head {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .change-section-head .count {
+    background: var(--surface); padding: 2px 8px; border-radius: 100px;
+    color: var(--text-mid); font-size: 10px;
+  }
+  .change-list { max-height: 260px; overflow-y: auto; }
+  .change-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px;
+  }
+  .change-row:last-child { border-bottom: none; }
+  .change-row .wallet-link { padding: 2px 6px; font-size: 11px; }
+  .change-amount { text-align: right; }
+  .change-amount .main { color: var(--text); font-weight: 500; }
+  .change-amount .sub { color: var(--text-dim); font-size: 9.5px; margin-top: 2px; }
+  .change-delta.positive { color: var(--success); }
+  .change-delta.negative { color: var(--danger); }
+
+  /* Card change badge */
+  .card-change-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 100px; font-family: var(--mono);
+    font-size: 10px; font-weight: 500; margin-left: 8px;
+    vertical-align: middle;
+  }
+  .card-change-badge.positive { background: rgba(74,222,128,0.15); color: var(--success); }
+  .card-change-badge.negative { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .card-change-badge.neutral { background: var(--surface-hover); color: var(--text-dim); }
+
+
   /* Modal */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
@@ -388,6 +468,7 @@
     </div>
     <div class="topbar-right">
       <div class="cache-stat" id="cache-stat">Cache: <b>—</b> fomo wallets</div>
+      <button class="btn btn-ghost" onclick="refreshAll()" title="Refresh all tokens now">↻ Refresh All</button>
       <input class="mint-input" id="mint-input" placeholder="Paste token mint address..." onkeydown="if(event.key==='Enter') addToken()" />
       <button class="btn btn-primary" onclick="addToken()">+ Track Token</button>
     </div>
@@ -431,6 +512,7 @@
 const API = 'https://web-production-47e4c.up.railway.app';
 let tokenData = {};
 let allLabels = {};
+let cardChanges = {};  // { mint: { available, pct_delta, ... } }
 let modalWallet = '';
 let currentDetail = null;
 
@@ -470,6 +552,14 @@ async function removeToken(mint, e) {
 async function triggerRefresh(mint) {
   await apiFetch(`/api/refresh/${mint}`);
   showToast('Refreshing...', 'success');
+}
+
+async function refreshAll() {
+  const mints = Object.keys(tokenData);
+  if (mints.length === 0) { showToast('No tokens to refresh', 'error'); return; }
+  showToast(`Refreshing all ${mints.length} tokens...`, 'success');
+  await Promise.all(mints.map(m => apiFetch(`/api/refresh/${m}`).catch(() => {})));
+  setTimeout(pollData, 500);
 }
 
 function openLabelModal(wallet, currentLabel='') {
@@ -545,6 +635,16 @@ function renderCard(mint, data) {
   const statusText = status === 'ready' ? 'Live' : status === 'refreshing' ? 'Scanning' : 'Loading';
   const pctClass = pct === 0 ? 'zero' : '';
 
+  // Change badge — shows supply % change over 24h (how much token the fomo holders are gaining/losing)
+  const change = cardChanges[mint];
+  let badgeHtml = '';
+  if (change && change.available) {
+    const delta = change.supply_pct_change;
+    const cls = delta > 0 ? 'positive' : delta < 0 ? 'negative' : 'neutral';
+    const sign = delta > 0 ? '+' : '';
+    badgeHtml = `<span class="card-change-badge ${cls}" title="fomo supply change over ${change.actual_hours_ago.toFixed(1)}h">${sign}${delta.toFixed(2)}% 24h</span>`;
+  }
+
   return `<div class="card" onclick="openDetail('${mint}')">
     <div class="card-head">
       <div class="card-ident">
@@ -559,6 +659,7 @@ function renderCard(mint, data) {
     <div class="card-metric-main">
       <div class="card-pct ${pctClass}">${pct.toFixed(2)}%</div>
       <div class="card-pct-label">on fomo</div>
+      ${badgeHtml}
     </div>
     <div class="card-spark">${sparklineSVG(data.history)}</div>
     <div class="card-stats">
@@ -733,6 +834,21 @@ function renderDetail(mint) {
       </div>
     </div>
 
+    <div class="changes-panel" id="changes-panel">
+      <div class="panel-head">
+        <div class="panel-title">Changes over time</div>
+        <div class="time-window-tabs">
+          <button class="tw-tab" data-hours="1" onclick="loadChanges('${mint}', 1)">1H</button>
+          <button class="tw-tab active" data-hours="4" onclick="loadChanges('${mint}', 4)">4H</button>
+          <button class="tw-tab" data-hours="12" onclick="loadChanges('${mint}', 12)">12H</button>
+          <button class="tw-tab" data-hours="24" onclick="loadChanges('${mint}', 24)">24H</button>
+        </div>
+      </div>
+      <div class="panel-body" id="changes-body">
+        <div style="padding:40px; text-align:center; color:var(--text-dim); font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px;">LOADING…</div>
+      </div>
+    </div>
+
     <div class="holders-panel">
       <div class="panel-head">
         <div class="panel-title">Top fomo holders</div>
@@ -745,6 +861,128 @@ function renderDetail(mint) {
       </table>`}
     </div>
   `;
+
+  // Auto-load default 4h changes
+  loadChanges(mint, 4);
+}
+
+// Load change data for a given time window
+async function loadChanges(mint, hours) {
+  // Update active tab
+  document.querySelectorAll('.tw-tab').forEach(b => {
+    b.classList.toggle('active', parseFloat(b.dataset.hours) === hours);
+  });
+
+  const body = document.getElementById('changes-body');
+  if (!body) return;
+  body.innerHTML = `<div style="padding:40px; text-align:center; color:var(--text-dim); font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px;">LOADING…</div>`;
+
+  try {
+    const data = await apiFetch(`/api/changes/${mint}?hours=${hours}`);
+    if (!data.available) {
+      body.innerHTML = `<div style="padding:40px; text-align:center; color:var(--text-dim); font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px;">NOT ENOUGH HISTORY YET — CHECK BACK LATER</div>`;
+      return;
+    }
+
+    const pctCls = data.pct_delta > 0 ? 'positive' : data.pct_delta < 0 ? 'negative' : 'neutral';
+    const countCls = data.count_delta > 0 ? 'positive' : data.count_delta < 0 ? 'negative' : 'neutral';
+    const supplyCls = data.supply_delta > 0 ? 'positive' : data.supply_delta < 0 ? 'negative' : 'neutral';
+    const sign = v => v > 0 ? '+' : '';
+
+    const renderWalletRow = (row, showDelta=true) => {
+      const s = shortMid(row.wallet);
+      const label = row.label || '';
+      const display = label
+        ? `<span class="wallet-label-text">${label}</span><span class="wallet-short-dim">${s}</span>`
+        : s;
+      const walletEsc = row.wallet.replace(/'/g,"\\'");
+      const labelEsc = label.replace(/'/g,"\\'");
+      if (showDelta && row.delta !== undefined) {
+        const deltaCls = row.delta > 0 ? 'positive' : 'negative';
+        return `<div class="change-row">
+          <span class="wallet-link" onclick="openLabelModal('${walletEsc}','${labelEsc}')">${display}</span>
+          <div class="change-amount">
+            <div class="main change-delta ${deltaCls}">${sign(row.delta)}${row.delta.toLocaleString()}</div>
+            <div class="sub">${row.before.toLocaleString()} → ${row.after.toLocaleString()}</div>
+          </div>
+        </div>`;
+      } else {
+        return `<div class="change-row">
+          <span class="wallet-link" onclick="openLabelModal('${walletEsc}','${labelEsc}')">${display}</span>
+          <div class="change-amount"><div class="main">${row.amount.toLocaleString()}</div></div>
+        </div>`;
+      }
+    };
+
+    const gainers = data.wallet_changes.filter(w => w.delta > 0).slice(0, 10);
+    const losers  = data.wallet_changes.filter(w => w.delta < 0).slice(0, 10);
+
+    body.innerHTML = `
+      <div class="changes-summary">
+        <div class="change-metric">
+          <div class="change-metric-label">fomo % delta</div>
+          <div class="change-metric-val ${pctCls}">${sign(data.pct_delta)}${data.pct_delta.toFixed(4)}%</div>
+          <div class="change-metric-sub">${data.past_fomo_pct.toFixed(2)}% → ${data.current_fomo_pct.toFixed(2)}%</div>
+        </div>
+        <div class="change-metric">
+          <div class="change-metric-label">holder count</div>
+          <div class="change-metric-val ${countCls}">${sign(data.count_delta)}${data.count_delta}</div>
+          <div class="change-metric-sub">${data.past_holders_count} → ${data.current_holders_count}</div>
+        </div>
+        <div class="change-metric">
+          <div class="change-metric-label">supply change</div>
+          <div class="change-metric-val ${supplyCls}">${sign(data.supply_delta)}${data.supply_delta.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+          <div class="change-metric-sub">tokens</div>
+        </div>
+        <div class="change-metric">
+          <div class="change-metric-label">actual window</div>
+          <div class="change-metric-val neutral" style="color:var(--text-mid)">${data.actual_hours_ago.toFixed(1)}h</div>
+          <div class="change-metric-sub">requested ${hours}h</div>
+        </div>
+      </div>
+
+      <div class="changes-grid">
+        <div class="change-section">
+          <div class="change-section-head">
+            <span style="color:var(--success)">↑ New fomo entries</span>
+            <span class="count">${data.new_entries.length}</span>
+          </div>
+          <div class="change-list">
+            ${data.new_entries.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:DM Mono,monospace;font-size:10.5px;">NONE</div>' : data.new_entries.map(r => renderWalletRow(r, false)).join('')}
+          </div>
+        </div>
+        <div class="change-section">
+          <div class="change-section-head">
+            <span style="color:var(--danger)">↓ Exited fomo holders</span>
+            <span class="count">${data.exits.length}</span>
+          </div>
+          <div class="change-list">
+            ${data.exits.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:DM Mono,monospace;font-size:10.5px;">NONE</div>' : data.exits.map(r => renderWalletRow(r, false)).join('')}
+          </div>
+        </div>
+        <div class="change-section">
+          <div class="change-section-head">
+            <span style="color:var(--success)">↑ Top buyers</span>
+            <span class="count">${gainers.length}</span>
+          </div>
+          <div class="change-list">
+            ${gainers.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:DM Mono,monospace;font-size:10.5px;">NO CHANGES</div>' : gainers.map(r => renderWalletRow(r, true)).join('')}
+          </div>
+        </div>
+        <div class="change-section">
+          <div class="change-section-head">
+            <span style="color:var(--danger)">↓ Top sellers</span>
+            <span class="count">${losers.length}</span>
+          </div>
+          <div class="change-list">
+            ${losers.length === 0 ? '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:DM Mono,monospace;font-size:10.5px;">NO CHANGES</div>' : losers.map(r => renderWalletRow(r, true)).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) {
+    body.innerHTML = `<div style="padding:40px; text-align:center; color:var(--danger); font-family:'DM Mono',monospace; font-size:11px;">ERROR LOADING CHANGES</div>`;
+  }
 }
 
 async function pollData() {
@@ -760,6 +998,14 @@ async function pollData() {
     if (cs) cs.innerHTML = `Cache: <b>${cache.fomo_wallets || 0}</b> fomo · <b>${cache.labeled_wallets || 0}</b> labeled`;
 
     const mints = Object.keys(tokenData);
+
+    // Fetch 24h changes for each card in parallel
+    await Promise.all(mints.map(async m => {
+      try {
+        cardChanges[m] = await apiFetch(`/api/changes/${m}?hours=24`);
+      } catch(e) { /* ignore */ }
+    }));
+
     if (mints.length === 0) {
       document.getElementById('grid').innerHTML = `
         <div class="card-add" onclick="document.getElementById('mint-input').focus()" style="grid-column: 1/-1; max-width:420px; margin:0 auto;">
