@@ -515,6 +515,8 @@ let allLabels = {};
 let cardChanges = {};  // { mint: { available, pct_delta, ... } }
 let modalWallet = '';
 let currentDetail = null;
+let currentChangesWindow = 4;  // hours
+let lastDetailUpdate = '';     // track what we last rendered
 
 async function apiFetch(path, opts={}) {
   const resp = await fetch(API + path, opts);
@@ -692,6 +694,7 @@ function renderGrid() {
 
 function openDetail(mint) {
   currentDetail = mint;
+  lastDetailUpdate = '';  // force fresh changes load
   document.getElementById('detail-view').style.display = 'block';
   document.body.style.overflow = 'hidden';
   renderDetail(mint);
@@ -862,12 +865,17 @@ function renderDetail(mint) {
     </div>
   `;
 
-  // Auto-load default 4h changes
-  loadChanges(mint, 4);
+  // Only re-load changes if scan data updated or user changed window
+  const updated = data.last_updated || '';
+  if (updated !== lastDetailUpdate) {
+    lastDetailUpdate = updated;
+    loadChanges(mint, currentChangesWindow);
+  }
 }
 
 // Load change data for a given time window
 async function loadChanges(mint, hours) {
+  currentChangesWindow = hours;
   // Update active tab
   document.querySelectorAll('.tw-tab').forEach(b => {
     b.classList.toggle('active', parseFloat(b.dataset.hours) === hours);
