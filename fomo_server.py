@@ -22,6 +22,7 @@ from datetime import datetime
 HELIUS_API_KEY   = os.environ.get("HELIUS_API_KEY", "")
 REFRESH_INTERVAL = 180
 PORT             = int(os.environ.get("PORT", 8765))  # Railway sets PORT automatically
+TOP_HOLDERS      = 100                                 # Only scan top N holders
 # ─────────────────────────────────────────────
 
 FOMO_FEE_WALLET  = "R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX"
@@ -85,33 +86,28 @@ def get_token_name(mint: str) -> str:
         return mint[:8] + "..."
 
 def get_all_holders(mint: str) -> dict:
-    page, holders = 1, {}
-    while True:
-        try:
-            resp = requests.post(HELIUS_RPC_URL, json={
-                "jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
-                "params": {"mint": mint, "page": page, "limit": 1000, "displayOptions": {}}
-            }, timeout=30)
-            accounts = resp.json().get("result", {}).get("token_accounts", [])
-        except Exception as e:
-            print(f"  ⚠️  Holder fetch error (page {page}): {e}")
-            break
-        if not accounts:
-            break
+    """Fetch only the top TOP_HOLDERS holders (largest balances first)."""
+    holders = {}
+    try:
+        resp = requests.post(HELIUS_RPC_URL, json={
+            "jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
+            "params": {"mint": mint, "page": 1, "limit": TOP_HOLDERS, "displayOptions": {}}
+        }, timeout=30)
+        accounts = resp.json().get("result", {}).get("token_accounts", [])
         for acc in accounts:
             owner  = acc.get("owner", "")
             amount = int(acc.get("amount", 0))
             if owner and amount > 0:
                 holders[owner] = amount
-        page += 1
-        time.sleep(0.2)
+    except Exception as e:
+        print(f"  ⚠️  Holder fetch error: {e}")
     return holders
 
 def is_fomo_wallet(wallet: str) -> bool:
     try:
         resp = requests.get(
             f"{HELIUS_API_URL}/addresses/{wallet}/transactions",
-            params={"api-key": HELIUS_API_KEY, "limit": 10},
+            params={"api-key": HELIUS_API_KEY, "limit": 20},
             timeout=20
         )
         if resp.status_code == 200:
@@ -129,7 +125,7 @@ def is_fomo_wallet(wallet: str) -> bool:
     try:
         sigs = requests.post(HELIUS_RPC_URL, json={
             "jsonrpc": "2.0", "id": "s", "method": "getSignaturesForAddress",
-            "params": [wallet, {"limit": 10}]
+            "params": [wallet, {"limit": 20}]
         }, timeout=20).json().get("result", [])
         for s in sigs:
             sig = s.get("signature", "")
@@ -143,7 +139,7 @@ def is_fomo_wallet(wallet: str) -> bool:
                 keys = tx.get("transaction", {}).get("message", {}).get("accountKeys", [])
                 if FOMO_FEE_WALLET in keys:
                     return True
-            time.sleep(0.05)
+            time.sleep(0.02)
     except Exception:
         pass
     return False
@@ -169,7 +165,7 @@ def refresh_token(mint: str):
             fomo_holders[wallet] = all_holders[wallet]
 
     new_wallets = [w for w in all_holders if w not in cached_fomo]
-    print(f"  Total: {len(all_holders)} holders | Scanning {len(new_wallets)} new wallets")
+    print(f"  Top {TOP_HOLDERS} holders | Scanning {len(new_wallets)} new wallets")
 
     for i, wallet in enumerate(new_wallets, 1):
         if i % 20 == 0:
@@ -332,6 +328,7 @@ def main():
     print("=" * 50)
     print("  fomo Multi-Token Dashboard — Server")
     print(f"  Port: {PORT}")
+    print(f"  Scanning top {TOP_HOLDERS} holders only")
     print("=" * 50)
 
     saved = load_tokens()
