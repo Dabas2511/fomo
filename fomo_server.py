@@ -26,7 +26,7 @@ from datetime import datetime
 HELIUS_API_KEY   = os.environ.get("HELIUS_API_KEY", "")
 REFRESH_INTERVAL = 180
 PORT             = int(os.environ.get("PORT", 8765))
-TOP_HOLDERS      = 100
+TOP_HOLDERS      = 200
 PARALLEL_WORKERS = 10
 TX_LIMIT         = 100   # txns per token account (should be plenty)
 # ─────────────────────────────────────────────
