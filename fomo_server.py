@@ -27,7 +27,7 @@ REFRESH_INTERVAL = 180
 PORT             = int(os.environ.get("PORT", 8765))
 TOP_HOLDERS      = 100
 TX_LIMIT         = 100     # txns checked per wallet
-PARALLEL_WORKERS = 10      # wallets checked at the same time
+PARALLEL_WORKERS = 3      # wallets checked at the same time
 # ─────────────────────────────────────────────
 
 FOMO_FEE_WALLET  = "R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX"
