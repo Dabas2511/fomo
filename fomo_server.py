@@ -123,26 +123,39 @@ def get_token_info(mint: str) -> dict:
 
 def get_top_holders(mint: str, decimals: int) -> list:
     """
-    Returns list of (wallet, token_account, amount) tuples.
-    We need the TOKEN ACCOUNT (not just wallet) for targeted scanning.
+    Returns list of (wallet, token_account, amount) tuples sorted by balance DESC.
+    Helius getTokenAccounts doesn't sort by balance, so we fetch multiple pages
+    and sort client-side to get the true top holders.
     """
-    holders = []
+    all_holders = []
     try:
-        resp = requests.post(HELIUS_RPC_URL, json={
-            "jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
-            "params": {"mint": mint, "page": 1, "limit": TOP_HOLDERS, "displayOptions": {}}
-        }, timeout=30)
-        accounts = resp.json().get("result", {}).get("token_accounts", [])
-        for acc in accounts:
-            owner         = acc.get("owner", "")
-            token_account = acc.get("address", "")
-            raw_amount    = int(acc.get("amount", 0))
-            if owner and raw_amount > 0 and token_account:
-                amount = raw_amount / (10 ** decimals)
-                holders.append((owner, token_account, amount))
+        # Fetch up to 10 pages of 1000 each = 10,000 accounts max
+        for page in range(1, 11):
+            resp = requests.post(HELIUS_RPC_URL, json={
+                "jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
+                "params": {"mint": mint, "page": page, "limit": 1000, "displayOptions": {}}
+            }, timeout=30)
+            accounts = resp.json().get("result", {}).get("token_accounts", [])
+            if not accounts:
+                break
+            for acc in accounts:
+                owner         = acc.get("owner", "")
+                token_account = acc.get("address", "")
+                raw_amount    = int(acc.get("amount", 0))
+                if owner and raw_amount > 0 and token_account:
+                    amount = raw_amount / (10 ** decimals)
+                    all_holders.append((owner, token_account, amount))
+            # If we got less than 1000, we're at the end
+            if len(accounts) < 1000:
+                break
+
+        # Sort by balance descending and take top N
+        all_holders.sort(key=lambda x: x[2], reverse=True)
+        print(f"  Fetched {len(all_holders)} total accounts, taking top {TOP_HOLDERS}")
+        return all_holders[:TOP_HOLDERS]
     except Exception as e:
         print(f"  ⚠️  Holder fetch error: {e}")
-    return holders
+    return all_holders[:TOP_HOLDERS]
 
 def tx_is_fomo(tx: dict) -> bool:
     """Check if a single transaction is a fomo transaction."""
