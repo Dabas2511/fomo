@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fomo Holdings</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0d1117;
+    --surface2: #131920;
+    --border: #1e2a36;
+    --fomo: #00e5ff;
+    --fomo-dim: rgba(0,229,255,0.10);
+    --fomo-glow: rgba(0,229,255,0.35);
+    --danger: #ff4d6d;
+    --danger-dim: rgba(255,77,109,0.12);
+    --warn: #f59e0b;
+    --text: #e2eaf2;
+    --text-dim: #5a7a96;
+    --text-mid: #8ba8c0;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+    --radius: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events:none; z-index:0;
+  }
+
+  .app { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; }
+
+  /* ── Top bar ── */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding: 0 28px;
+    height: 58px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,11,16,0.95);
+    backdrop-filter: blur(12px);
+    flex-shrink:0;
+    position: sticky; top:0; z-index:100;
+  }
+
+  .logo { font-size:18px; font-weight:800; letter-spacing:-0.3px; }
+  .logo span { color: var(--fomo); }
+
+  .add-token-form {
+    display:flex; align-items:center; gap:8px;
+  }
+
+  .mint-input {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    width: 300px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .mint-input::placeholder { color: var(--text-dim); }
+  .mint-input:focus { border-color: var(--fomo); }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: var(--fomo);
+    color: #000;
+    font-weight: 700;
+  }
+  .btn-primary:hover { background: #33ecff; box-shadow: 0 0 16px var(--fomo-glow); }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+  .btn-ghost:hover { border-color: var(--fomo); color: var(--fomo); }
+  .btn-danger {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-dim);
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  .btn-danger:hover { color: var(--danger); }
+
+  /* ── Tab bar ── */
+  .tabbar {
+    display:flex; align-items:center; gap:2px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    overflow-x: auto;
+    flex-shrink: 0;
+    scrollbar-width: none;
+  }
+  .tabbar::-webkit-scrollbar { display:none; }
+
+  .tab {
+    display:flex; align-items:center; gap:8px;
+    padding: 0 18px;
+    height: 44px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--fomo); border-bottom-color: var(--fomo); }
+
+  .tab-status {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .tab-status.ready { background: var(--fomo); box-shadow: 0 0 6px var(--fomo-glow); animation: pulse 2s infinite; }
+  .tab-status.loading { background: var(--warn); animation: blink 0.8s infinite; }
+
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .tab-pct {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: var(--fomo-dim);
+    color: var(--fomo);
+    padding: 2px 7px;
+    border-radius: 100px;
+  }
+
+  .empty-tabs {
+    padding: 80px 28px;
+    text-align: center;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 2;
+  }
+  .empty-tabs strong { color: var(--text); font-family: var(--sans); font-size: 18px; display:block; margin-bottom:8px; }
+
+  /* ── Content area ── */
+  .content { flex:1; overflow-y: auto; padding: 28px; }
+
+  /* ── Token panel ── */
+  .token-panel { display:none; }
+  .token-panel.active { display:block; animation: fadeUp 0.3s ease; }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .panel-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 28px; flex-wrap:wrap; gap:12px;
+  }
+
+  .panel-title { font-size:22px; font-weight:800; }
+  .panel-title span { color: var(--fomo); }
+  .panel-mint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  .panel-actions { display:flex; gap:8px; align-items:center; }
+
+  .last-updated {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  @media(max-width:700px){ .stats-grid{grid-template-columns:1fr;} }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px 20px;
+    position:relative; overflow:hidden;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: rgba(0,229,255,0.25); }
+  .stat-card::after {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--fomo), transparent);
+    opacity:0; transition: opacity 0.3s;
+  }
+  .stat-card:hover::after { opacity:1; }
+
+  .stat-label {
+    font-size:10px; font-weight:600; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:12px;
+  }
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 38px; font-weight:700;
+    color: var(--fomo); line-height:1; letter-spacing:-1px;
+  }
+  .stat-value.neutral { color: var(--text); }
+  .stat-sub { font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:6px; }
+
+  /* ── Chart row ── */
+  .chart-row {
+    display:grid;
+    grid-template-columns: 240px 1fr;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  @media(max-width:700px){ .chart-row{grid-template-columns:1fr;} }
+
+  .donut-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:24px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .donut-wrap { position:relative; width:150px; height:150px; margin-bottom:18px; }
+  .donut-wrap svg { transform: rotate(-90deg); }
+  .donut-center {
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .donut-pct { font-family:var(--mono); font-size:24px; font-weight:700; color:var(--fomo); }
+  .donut-sub { font-size:10px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
+  .legend { display:flex; flex-direction:column; gap:9px; width:100%; }
+  .legend-item { display:flex; align-items:center; gap:9px; font-size:12px; }
+  .legend-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+  .legend-name { color:var(--text-mid); flex:1; }
+  .legend-val { font-family:var(--mono); color:var(--text); font-size:11px; }
+
+  .history-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); padding:24px;
+  }
+  .card-title {
+    font-size:10px; font-weight:600; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--text-dim); margin-bottom:18px;
+  }
+  .sparkline-wrap { width:100%; height:110px; }
+  .no-data {
+    display:flex; align-items:center; justify-content:center;
+    height:110px; color:var(--text-dim); font-family:var(--mono); font-size:11px;
+  }
+
+  /* ── Table ── */
+  .table-card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:var(--radius); overflow:hidden;
+  }
+  .table-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid var(--border);
+  }
+  .badge {
+    font-family:var(--mono); font-size:10px;
+    background:var(--fomo-dim); color:var(--fomo);
+    border:1px solid rgba(0,229,255,0.2);
+    padding:3px 10px; border-radius:100px;
+  }
+  table { width:100%; border-collapse:collapse; }
+  thead th {
+    font-family:var(--mono); font-size:10px; letter-spacing:1.5px;
+    text-transform:uppercase; color:var(--text-dim);
+    padding:10px 20px; text-align:left;
+    border-bottom:1px solid var(--border);
+    background:var(--surface2);
+  }
+  thead th:last-child { text-align:right; }
+  tbody tr { border-bottom:1px solid rgba(30,42,54,0.5); transition:background 0.15s; }
+  tbody tr:hover { background:var(--surface2); }
+  tbody tr:last-child { border-bottom:none; }
+  tbody td { padding:12px 20px; font-family:var(--mono); font-size:12px; }
+  .rank-cell { color:var(--text-dim); width:40px; }
+  .wallet-cell a { color:var(--fomo); text-decoration:none; }
+  .wallet-cell a:hover { text-decoration:underline; }
+  .amount-cell { color:var(--text); }
+  .pct-cell { text-align:right; }
+  .pct-bar-wrap { display:flex; align-items:center; gap:10px; justify-content:flex-end; }
+  .pct-bar { width:70px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .pct-bar-fill { height:100%; background:var(--fomo); border-radius:2px; box-shadow:0 0 5px var(--fomo-glow); }
+
+  .empty-state { padding:40px; text-align:center; color:var(--text-dim); font-family:var(--mono); font-size:12px; }
+
+  /* ── Initializing overlay ── */
+  .init-overlay {
+    padding: 60px 20px; text-align:center;
+  }
+  .init-spinner {
+    width:40px; height:40px; border:2px solid var(--border);
+    border-top-color:var(--fomo); border-radius:50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .init-msg { color:var(--text-dim); font-family:var(--mono); font-size:12px; }
+
+  /* Toast */
+  .toast {
+    position:fixed; bottom:24px; right:24px;
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--text); font-family:var(--mono); font-size:12px;
+    padding:12px 20px; border-radius:8px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4);
+    z-index:999; transition:opacity 0.3s;
+  }
+  .toast.error { border-color:var(--danger); color:var(--danger); }
+  .toast.success { border-color:var(--fomo); color:var(--fomo); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="logo"><span>fomo</span> Holdings</div>
+    <div class="add-token-form">
+      <input class="mint-input" id="mint-input" placeholder="Paste token mint address..." />
+      <button class="btn btn-primary" onclick="addToken()">+ Track Token</button>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tabbar" id="tabbar">
+    <div class="empty-tabs" id="empty-tabs" style="display:none; padding:10px 0; font-size:11px; color:var(--text-dim);">
+      No tokens tracked yet — paste a mint address above ↑
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="content">
+    <div class="empty-tabs" id="empty-content">
+      <strong>Nothing tracked yet</strong>
+      Paste a Solana token mint address above to start tracking<br>
+      fomo holder % in real time.
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = 'YOUR_RAILWAY_URL'; // e.g. https://fomo-dashboard.up.railway.app
+let activeTab = null;
+let tokenData = {};   // { mint: data }
+let pollInterval = null;
+
+// ── API calls ──────────────────────────────────────────────
+
+async function apiFetch(path, opts={}) {
+  const resp = await fetch(API + path, opts);
+  return resp.json();
+}
+
+async function addToken() {
+  const input = document.getElementById('mint-input');
+  const mint = input.value.trim();
+  if (!mint) return;
+
+  if (tokenData[mint]) { showToast('Already tracking this token', 'error'); return; }
+
+  try {
+    const res = await apiFetch('/api/tokens', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({mint})
+    });
+    if (res.ok) {
+      input.value = '';
+      showToast('Token added! Scanning holders...', 'success');
+      await pollData();
+      switchTab(mint);
+    } else {
+      showToast(res.message || 'Error adding token', 'error');
+    }
+  } catch(e) {
+    showToast('Cannot reach server', 'error');
+  }
+}
+
+async function removeToken(mint, e) {
+  e.stopPropagation();
+  if (!confirm('Stop tracking this token?')) return;
+  try {
+    await apiFetch(`/api/token/${mint}`, { method: 'DELETE' });
+    delete tokenData[mint];
+    document.getElementById(`tab-${mint}`)?.remove();
+    document.getElementById(`panel-${mint}`)?.remove();
+    const remaining = Object.keys(tokenData);
+    if (remaining.length > 0) switchTab(remaining[0]);
+    else { activeTab = null; checkEmpty(); }
+    showToast('Token removed', 'success');
+  } catch(e) {
+    showToast('Error removing token', 'error');
+  }
+}
+
+async function triggerRefresh(mint) {
+  await apiFetch(`/api/refresh/${mint}`);
+  showToast('Refreshing...', 'success');
+}
+
+// ── Polling ────────────────────────────────────────────────
+
+async function pollData() {
+  try {
+    const all = await apiFetch('/api/tokens');
+    const mints = Object.keys(all);
+
+    mints.forEach(mint => {
+      const data = all[mint];
+      tokenData[mint] = data;
+      ensureTab(mint, data);
+      ensurePanel(mint);
+      updateTab(mint, data);
+      if (activeTab === mint) renderPanel(mint, data);
+    });
+
+    checkEmpty();
+  } catch(e) {
+    // server not reachable
+  }
+}
+
+// ── Tab management ─────────────────────────────────────────
+
+function ensureTab(mint, data) {
+  if (document.getElementById(`tab-${mint}`)) return;
+  const tabbar = document.getElementById('tabbar');
+  const tab = document.createElement('div');
+  tab.className = 'tab';
+  tab.id = `tab-${mint}`;
+  tab.onclick = () => switchTab(mint);
+  tab.innerHTML = `
+    <div class="tab-status loading" id="tabdot-${mint}"></div>
+    <span id="tabname-${mint}">${data.name || mint.slice(0,8)+'...'}</span>
+    <span class="tab-pct" id="tabpct-${mint}" style="display:none">—</span>
+    <button class="btn-danger" onclick="removeToken('${mint}', event)" title="Remove">✕</button>`;
+  tabbar.appendChild(tab);
+  if (!activeTab) switchTab(mint);
+}
+
+function updateTab(mint, data) {
+  const dot = document.getElementById(`tabdot-${mint}`);
+  const name = document.getElementById(`tabname-${mint}`);
+  const pct  = document.getElementById(`tabpct-${mint}`);
+  if (!dot) return;
+  dot.className = 'tab-status ' + (data.status === 'ready' ? 'ready' : 'loading');
+  if (name) name.textContent = data.name || mint.slice(0,8)+'...';
+  if (pct && data.status === 'ready') {
+    pct.style.display = '';
+    pct.textContent = data.fomo_pct?.toFixed(1) + '%';
+  }
+}
+
+function switchTab(mint) {
+  activeTab = mint;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.token-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${mint}`)?.classList.add('active');
+  document.getElementById(`panel-${mint}`)?.classList.add('active');
+  if (tokenData[mint]) renderPanel(mint, tokenData[mint]);
+}
+
+// ── Panel management ───────────────────────────────────────
+
+function ensurePanel(mint) {
+  if (document.getElementById(`panel-${mint}`)) return;
+  const content = document.getElementById('content');
+  const panel = document.createElement('div');
+  panel.className = 'token-panel';
+  panel.id = `panel-${mint}`;
+  content.appendChild(panel);
+}
+
+function renderPanel(mint, data) {
+  const panel = document.getElementById(`panel-${mint}`);
+  if (!panel) return;
+
+  if (data.status === 'initializing' || data.status === 'refreshing' && data.total_holders === 0) {
+    panel.innerHTML = `
+      <div class="init-overlay">
+        <div class="init-spinner"></div>
+        <div class="init-msg">Scanning holders for fomo activity...<br>This may take a few minutes.</div>
+      </div>`;
+    return;
+  }
+
+  const fomoPct   = data.fomo_pct ?? 0;
+  const circ      = 345;
+  const offset    = circ - (fomoPct / 100) * circ;
+  const updTime   = data.last_updated ? data.last_updated.split(' ')[1] : '—';
+  const holders   = data.top_fomo_holders || [];
+  const maxAmt    = holders[0]?.amount || 1;
+
+  const rows = holders.map((h, i) => {
+    const short = `${h.wallet.slice(0,6)}...${h.wallet.slice(-4)}`;
+    const bar   = Math.min(100, (h.amount / maxAmt) * 100).toFixed(1);
+    return `<tr>
+      <td class="rank-cell">#${i+1}</td>
+      <td class="wallet-cell"><a href="https://solscan.io/account/${h.wallet}" target="_blank" title="${h.wallet}">${short}</a></td>
+      <td class="amount-cell">${h.amount.toLocaleString()}</td>
+      <td class="pct-cell">
+        <div class="pct-bar-wrap">
+          <div class="pct-bar"><div class="pct-bar-fill" style="width:${bar}%"></div></div>
+          ${h.pct.toFixed(4)}%
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <div class="panel-title"><span>${data.name || '—'}</span></div>
+        <div class="panel-mint">${mint}</div>
+      </div>
+      <div class="panel-actions">
+        <span class="last-updated">Updated ${updTime}</span>
+        <button class="btn btn-ghost" onclick="triggerRefresh('${mint}')">↺ Refresh</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">fomo % of Supply</div>
+        <div class="stat-value">${fomoPct.toFixed(1)}%</div>
+        <div class="stat-sub">${(data.fomo_supply||0).toLocaleString()} tokens</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">fomo Holders</div>
+        <div class="stat-value">${(data.fomo_holders_count||0).toLocaleString()}</div>
+        <div class="stat-sub">of ${(data.total_holders||0).toLocaleString()} total holders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Non-fomo %</div>
+        <div class="stat-value neutral">${(data.non_fomo_pct??100).toFixed(1)}%</div>
+        <div class="stat-sub">${((data.total_supply||0)-(data.fomo_supply||0)).toLocaleString()} tokens</div>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="donut-card">
+        <div class="donut-wrap">
+          <svg viewBox="0 0 150 150" width="150" height="150">
+            <circle cx="75" cy="75" r="55" fill="none" stroke="#1e2a36" stroke-width="16"/>
+            <circle cx="75" cy="75" r="55" fill="none" stroke="#00e5ff" stroke-width="16"
+              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+              stroke-linecap="round"
+              style="transition:stroke-dashoffset 0.8s ease; filter:drop-shadow(0 0 5px rgba(0,229,255,0.5))"/>
+          </svg>
+          <div class="donut-center">
+            <div class="donut-pct">${fomoPct.toFixed(1)}%</div>
+            <div class="donut-sub">on fomo</div>
+          </div>
+        </div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#00e5ff"></div>
+            <span class="legend-name">fomo users</span>
+            <span class="legend-val">${fomoPct.toFixed(2)}%</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#1e2a36"></div>
+            <span class="legend-name">other wallets</span>
+            <span class="legend-val">${(data.non_fomo_pct??100).toFixed(2)}%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="history-card">
+        <div class="card-title">fomo % over time</div>
+        <div class="sparkline-wrap" id="spark-${mint}">
+          ${renderSparklineHTML(data.history || [])}
+        </div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <div class="card-title" style="margin-bottom:0">Top fomo Holders</div>
+        <div class="badge">${(data.fomo_holders_count||0).toLocaleString()} holders</div>
+      </div>
+      ${holders.length ? `
+        <table>
+          <thead><tr>
+            <th>#</th><th>Wallet</th><th>Amount</th><th>% of Supply</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>` : '<div class="empty-state">No fomo holders found yet</div>'}
+    </div>`;
+}
+
+function renderSparklineHTML(history) {
+  if (history.length < 2) return '<div class="no-data">Collecting data points...</div>';
+  const values = history.map(h => h.fomo_pct);
+  const labels = history.map(h => h.time.split(' ')[1]);
+  const min = Math.min(...values) - 0.5;
+  const max = Math.max(...values) + 0.5;
+  const w = 500, h = 110;
+  const pad = {top:10, bottom:22, left:8, right:8};
+  const xStep = (w - pad.left - pad.right) / (values.length - 1);
+  const yScale = (h - pad.top - pad.bottom) / (max - min || 1);
+  const pts = values.map((v, i) => ({
+    x: pad.left + i * xStep,
+    y: h - pad.bottom - (v - min) * yScale
+  }));
+  const line = pts.map((p, i) => `${i===0?'M':'L'}${p.x},${p.y}`).join(' ');
+  const area = line + ` L${pts[pts.length-1].x},${h-pad.bottom} L${pts[0].x},${h-pad.bottom} Z`;
+  const last = pts[pts.length - 1];
+  const lastVal = values[values.length - 1];
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%">
+    <defs>
+      <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.22"/>
+        <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="${area}" fill="url(#sg)"/>
+    <path d="${line}" fill="none" stroke="#00e5ff" stroke-width="2"
+      style="filter:drop-shadow(0 0 4px rgba(0,229,255,0.6))"/>
+    <circle cx="${last.x}" cy="${last.y}" r="4" fill="#00e5ff"
+      style="filter:drop-shadow(0 0 6px rgba(0,229,255,0.8))"/>
+    <text x="${last.x+8}" y="${last.y+4}" fill="#00e5ff" font-family="Space Mono" font-size="10">${lastVal.toFixed(2)}%</text>
+    <text x="${pad.left}" y="${h-4}" fill="#5a7a96" font-family="Space Mono" font-size="9">${labels[0]}</text>
+    <text x="${w-pad.right}" y="${h-4}" text-anchor="end" fill="#5a7a96" font-family="Space Mono" font-size="9">${labels[labels.length-1]}</text>
+  </svg>`;
+}
+
+// ── Misc ───────────────────────────────────────────────────
+
+function checkEmpty() {
+  const hasTabs = Object.keys(tokenData).length > 0;
+  document.getElementById('empty-content').style.display = hasTabs ? 'none' : 'block';
+}
+
+function showToast(msg, type='') {
+  const old = document.querySelector('.toast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(), 300); }, 3000);
+}
+
+// Enter key to add token
+document.getElementById('mint-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') addToken();
+});
+
+// Init + polling
+pollData();
+setInterval(pollData, 8000);
+</script>
+</body>
+</html>
