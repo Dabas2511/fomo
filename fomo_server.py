@@ -164,6 +164,9 @@ def scan_token_account_for_fomo(token_account: str, wallet: str) -> bool:
     Token accounts have MUCH shorter history than wallets (only txns
     involving this specific mint), so this is fast and accurate.
     """
+    DEBUG_WALLET = "ACFNvbyeyxRtTX29vYyp6ZURGyk1VUuTRmBjYCuSQZKL"
+    is_debug = (wallet == DEBUG_WALLET)
+
     try:
         resp = requests.get(
             f"{HELIUS_API_URL}/addresses/{token_account}/transactions",
@@ -179,13 +182,40 @@ def scan_token_account_for_fomo(token_account: str, wallet: str) -> bool:
                 timeout=30
             )
 
+        if is_debug:
+            print(f"  🔍 DEBUG {wallet[:12]} | token_acct={token_account[:12]} | status={resp.status_code}")
+
         if resp.status_code == 200:
-            for tx in resp.json():
+            txns = resp.json()
+            if is_debug:
+                print(f"  🔍 DEBUG got {len(txns)} txns for {wallet[:12]}")
+                swap_count = sum(1 for tx in txns if tx.get("type") == "SWAP")
+                print(f"  🔍 DEBUG {swap_count} SWAPs out of {len(txns)} txns")
+                for i, tx in enumerate(txns[:5]):
+                    has_fomo = any(
+                        t.get("toUserAccount") == FOMO_FEE_WALLET
+                        for t in tx.get("tokenTransfers", [])
+                    )
+                    has_jito = any(
+                        acc.get("account") == FOMO_JITO_IDENTIFIER
+                        for acc in tx.get("accountData", [])
+                    )
+                    print(f"  🔍 DEBUG tx[{i}] type={tx.get('type')} fomo_fee={has_fomo} jito={has_jito}")
+
+            for tx in txns:
                 if tx_is_fomo(tx):
                     mark_as_fomo(wallet)
+                    if is_debug:
+                        print(f"  🔍 DEBUG ✅ FOUND FOMO for {wallet[:12]}")
                     return True
+        else:
+            if is_debug:
+                print(f"  🔍 DEBUG bad response: {resp.text[:200]}")
     except Exception as e:
         print(f"  ⚠️  Scan error for {wallet[:8]}: {e}")
+
+    if is_debug:
+        print(f"  🔍 DEBUG NOT detected as fomo: {wallet[:12]}")
 
     return False
 
