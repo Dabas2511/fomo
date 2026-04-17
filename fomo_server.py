@@ -107,7 +107,7 @@ def is_fomo_wallet(wallet: str) -> bool:
     try:
         resp = requests.get(
             f"{HELIUS_API_URL}/addresses/{wallet}/transactions",
-            params={"api-key": HELIUS_API_KEY, "limit": 20},
+            params={"api-key": HELIUS_API_KEY, "limit": 100},
             timeout=20
         )
         if resp.status_code == 200:
@@ -125,7 +125,7 @@ def is_fomo_wallet(wallet: str) -> bool:
     try:
         sigs = requests.post(HELIUS_RPC_URL, json={
             "jsonrpc": "2.0", "id": "s", "method": "getSignaturesForAddress",
-            "params": [wallet, {"limit": 20}]
+            "params": [wallet, {"limit": 100}]
         }, timeout=20).json().get("result", [])
         for s in sigs:
             sig = s.get("signature", "")
