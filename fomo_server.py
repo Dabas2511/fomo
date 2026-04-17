@@ -53,10 +53,13 @@ EXCLUDED_WALLETS = {
 
 HELIUS_RPC_URL   = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
 HELIUS_API_URL   = f"https://api.helius.xyz/v0"
-TOKENS_FILE      = "fomo_tokens.json"
 
-GLOBAL_FOMO_WALLETS_FILE = "global_fomo_wallets.json"
-WALLET_LABELS_FILE       = "wallet_labels.json"
+# Use Railway volume /data if available, else local
+DATA_DIR = "/data" if os.path.isdir("/data") else "."
+TOKENS_FILE              = f"{DATA_DIR}/fomo_tokens.json"
+GLOBAL_FOMO_WALLETS_FILE = f"{DATA_DIR}/global_fomo_wallets.json"
+WALLET_LABELS_FILE       = f"{DATA_DIR}/wallet_labels.json"
+print(f"  💾 Data dir: {DATA_DIR}")
 
 tokens_state  = {}
 tokens_lock   = threading.Lock()
@@ -375,6 +378,10 @@ def add_token(mint: str):
             "fomo_pct": 0, "non_fomo_pct": 100,
             "top_fomo_holders": [], "history": [],
         }
+    # persist so it survives redeploys
+    toks = load_tokens()
+    toks[mint] = mint[:8]+"..."
+    save_tokens(toks)
     threading.Thread(target=token_loop, args=(mint,), daemon=True).start()
     return True, "Token added"
 
