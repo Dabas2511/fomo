@@ -40,6 +40,17 @@ TX_LIMIT         = 100   # txns per token account (should be plenty)
 FOMO_FEE_WALLET      = "R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX"
 FOMO_JITO_IDENTIFIER = "jitodontfront1111111111111111111TradeonFomo"
 
+# Known liquidity pools, AMMs, and system accounts — never count as fomo holders
+EXCLUDED_WALLETS = {
+    "BWFZkx1pMpvwxammwTrizvoWzZZGiFEYUYW6Ee51SHLy": "pump.fun AMM",
+    "gAyCDR69Pj9WfHXtqGbSRomGV8gYef1BWYh87bmgaYN": "pump.fun AMM",
+    "8FnX3xo2yYw3EUE6w3nQA4GfXGS9wpK6oj3veJpbFzLo": "pump.fun AMM",
+    "DB3sUCP2H4icbeKmK6yb6nUxU5ogbcRHtGuq7W2RoRwW": "Meteora AMM",
+    "7AqRdscJbVd2m3o3kPnNQHSMHNwFUyWNU2NRctyteADb": "Jupiter aggregator",
+    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "Jupiter",
+    "AgmLJBMDCqWynYnQiPCuj9ewsNNsBJXyzoUhD9LJzN51": "transaction fee payer",
+}
+
 HELIUS_RPC_URL   = f"https://mainnet.helius-rpc.com/?api-key={HELIUS_API_KEY}"
 HELIUS_API_URL   = f"https://api.helius.xyz/v0"
 TOKENS_FILE      = "fomo_tokens.json"
@@ -73,6 +84,17 @@ def load_globals():
     try:
         with open(WALLET_LABELS_FILE) as f: wallet_labels = json.load(f)
     except Exception: wallet_labels = {}
+
+    # Clean up: remove excluded wallets from global fomo cache if wrongly added
+    cleaned = 0
+    for w in list(global_fomo.keys()):
+        if w in EXCLUDED_WALLETS:
+            del global_fomo[w]
+            cleaned += 1
+    if cleaned > 0:
+        save_global_fomo()
+        print(f"  🧹 Cleaned {cleaned} AMM/system wallets from fomo cache")
+
     print(f"  📂 {len(global_fomo)} known fomo wallets | {len(wallet_labels)} labels")
 
 def save_global_fomo():
@@ -266,12 +288,15 @@ def refresh_token(mint: str):
         global_fomo_copy = dict(global_fomo)
 
     for wallet, token_account, amount in top_holders:
+        if wallet in EXCLUDED_WALLETS:
+            continue  # skip AMMs, aggregators, system accounts
         if wallet in labels_copy or wallet in global_fomo_copy:
             fomo_holders[wallet] = amount
         else:
             to_scan.append((wallet, token_account, amount))
 
-    print(f"  {len(fomo_holders)} from cache/labels | Scanning {len(to_scan)} wallets via token accounts (workers={PARALLEL_WORKERS})")
+    excluded_count = sum(1 for w, _, _ in top_holders if w in EXCLUDED_WALLETS)
+    print(f"  {len(fomo_holders)} from cache/labels | Excluded {excluded_count} AMMs/system | Scanning {len(to_scan)} wallets (workers={PARALLEL_WORKERS})")
 
     def check_holder(info):
         wallet, token_account, amount = info
