@@ -1,10 +1,11 @@
 """
 fomo Holdings Dashboard — Multi-Token Server (Railway Edition)
 ==============================================================
-Detection:
-- Global cache of confirmed fomo wallets (permanent)
-- Scans only SWAP transactions (where fomo fees are paid)
-- Any wallet with even one fomo swap is marked permanently
+NEW DETECTION METHOD — Token Account Scanning:
+- Instead of scanning each wallet's entire history (could be 1000+ txns)
+- We scan only the holder's TOKEN ACCOUNT for the specific mint
+- This gives us just UNC-related txns (maybe 5-20 per wallet)
+- Much faster and more accurate for whales
 
 Setup on Railway:
     Set environment variable: HELIUS_API_KEY=your_key_here
@@ -27,7 +28,7 @@ REFRESH_INTERVAL = 180
 PORT             = int(os.environ.get("PORT", 8765))
 TOP_HOLDERS      = 100
 PARALLEL_WORKERS = 10
-SWAP_SCAN_LIMIT  = 100   # how many recent SWAPs to check per wallet
+TX_LIMIT         = 100   # txns per token account (should be plenty)
 # ─────────────────────────────────────────────
 
 FOMO_FEE_WALLET      = "R4rNJHaffSUotNmqSKNEfDcJE8A7zJUkaoM5Jkd7cYX"
@@ -120,8 +121,12 @@ def get_token_info(mint: str) -> dict:
 
     return info
 
-def get_top_holders(mint: str, decimals: int) -> dict:
-    holders = {}
+def get_top_holders(mint: str, decimals: int) -> list:
+    """
+    Returns list of (wallet, token_account, amount) tuples.
+    We need the TOKEN ACCOUNT (not just wallet) for targeted scanning.
+    """
+    holders = []
     try:
         resp = requests.post(HELIUS_RPC_URL, json={
             "jsonrpc": "2.0", "id": "h", "method": "getTokenAccounts",
@@ -129,42 +134,48 @@ def get_top_holders(mint: str, decimals: int) -> dict:
         }, timeout=30)
         accounts = resp.json().get("result", {}).get("token_accounts", [])
         for acc in accounts:
-            owner      = acc.get("owner", "")
-            raw_amount = int(acc.get("amount", 0))
-            if owner and raw_amount > 0:
-                holders[owner] = raw_amount / (10 ** decimals)
+            owner         = acc.get("owner", "")
+            token_account = acc.get("address", "")
+            raw_amount    = int(acc.get("amount", 0))
+            if owner and raw_amount > 0 and token_account:
+                amount = raw_amount / (10 ** decimals)
+                holders.append((owner, token_account, amount))
     except Exception as e:
         print(f"  ⚠️  Holder fetch error: {e}")
     return holders
 
 def tx_is_fomo(tx: dict) -> bool:
-    """Check if a single transaction is a fomo transaction (USDC fee to fomo wallet)."""
+    """Check if a single transaction is a fomo transaction."""
     # USDC fee transfer to fomo wallet
     for t in tx.get("tokenTransfers", []):
         if t.get("toUserAccount") == FOMO_FEE_WALLET:
             return True
 
-    # Jito identifier in account data (unique fomo signature)
+    # Jito identifier
     for acc in tx.get("accountData", []):
         if acc.get("account") == FOMO_JITO_IDENTIFIER:
             return True
 
     return False
 
-def scan_wallet_for_fomo(wallet: str) -> bool:
-    """Scan a wallet's recent SWAP transactions for fomo markers."""
+def scan_token_account_for_fomo(token_account: str, wallet: str) -> bool:
+    """
+    Scan a token account's transactions for fomo markers.
+    Token accounts have MUCH shorter history than wallets (only txns
+    involving this specific mint), so this is fast and accurate.
+    """
     try:
         resp = requests.get(
-            f"{HELIUS_API_URL}/addresses/{wallet}/transactions",
-            params={"api-key": HELIUS_API_KEY, "limit": SWAP_SCAN_LIMIT, "type": "SWAP"},
+            f"{HELIUS_API_URL}/addresses/{token_account}/transactions",
+            params={"api-key": HELIUS_API_KEY, "limit": TX_LIMIT},
             timeout=30
         )
 
         if resp.status_code == 429:
             time.sleep(2)
             resp = requests.get(
-                f"{HELIUS_API_URL}/addresses/{wallet}/transactions",
-                params={"api-key": HELIUS_API_KEY, "limit": SWAP_SCAN_LIMIT, "type": "SWAP"},
+                f"{HELIUS_API_URL}/addresses/{token_account}/transactions",
+                params={"api-key": HELIUS_API_KEY, "limit": TX_LIMIT},
                 timeout=30
             )
 
@@ -177,12 +188,6 @@ def scan_wallet_for_fomo(wallet: str) -> bool:
         print(f"  ⚠️  Scan error for {wallet[:8]}: {e}")
 
     return False
-
-def is_fomo_wallet(wallet: str) -> bool:
-    with global_lock:
-        if wallet in global_fomo:
-            return True
-    return scan_wallet_for_fomo(wallet)
 
 # ── Core refresh ──────────────────────────────
 
@@ -204,36 +209,38 @@ def refresh_token(mint: str):
     top_holders = get_top_holders(mint, decimals)
     print(f"  Top {len(top_holders)} holders fetched")
 
-    fomo_holders = {}
-    to_scan      = []
+    fomo_holders = {}     # {wallet: amount}
+    to_scan      = []     # list of (wallet, token_account, amount)
 
     with global_lock:
         labels_copy      = dict(wallet_labels)
         global_fomo_copy = dict(global_fomo)
 
-    for wallet in top_holders:
+    for wallet, token_account, amount in top_holders:
         if wallet in labels_copy or wallet in global_fomo_copy:
-            fomo_holders[wallet] = top_holders[wallet]
+            fomo_holders[wallet] = amount
         else:
-            to_scan.append(wallet)
+            to_scan.append((wallet, token_account, amount))
 
-    print(f"  {len(fomo_holders)} from cache/labels | Scanning {len(to_scan)} wallets (workers={PARALLEL_WORKERS})")
+    print(f"  {len(fomo_holders)} from cache/labels | Scanning {len(to_scan)} wallets via token accounts (workers={PARALLEL_WORKERS})")
 
-    def check_wallet(w):
-        return w, is_fomo_wallet(w)
+    def check_holder(info):
+        wallet, token_account, amount = info
+        is_fomo = scan_token_account_for_fomo(token_account, wallet)
+        return wallet, amount, is_fomo
 
     completed = 0
     fomo_count = 0
     with ThreadPoolExecutor(max_workers=PARALLEL_WORKERS) as executor:
-        futures = {executor.submit(check_wallet, w): w for w in to_scan}
+        futures = {executor.submit(check_holder, h): h for h in to_scan}
         for future in as_completed(futures):
             completed += 1
             try:
-                wallet, is_fomo = future.result()
+                wallet, amount, is_fomo = future.result()
                 if is_fomo:
-                    fomo_holders[wallet] = top_holders[wallet]
+                    fomo_holders[wallet] = amount
                     fomo_count += 1
-                    print(f"  ✅ [{completed}/{len(to_scan)}] fomo: {wallet[:12]}... ({top_holders[wallet]:,.2f})")
+                    print(f"  ✅ [{completed}/{len(to_scan)}] fomo: {wallet[:12]}... ({amount:,.2f})")
                 elif completed % 10 == 0:
                     print(f"  Progress: {completed}/{len(to_scan)} ({fomo_count} found)")
             except Exception as e:
@@ -409,7 +416,7 @@ def main():
     print("=" * 50)
     print("  fomo Multi-Token Dashboard — Server")
     print(f"  Port: {PORT}")
-    print(f"  Top {TOP_HOLDERS} holders | SWAP-only scan ({SWAP_SCAN_LIMIT} per wallet)")
+    print(f"  Top {TOP_HOLDERS} holders | Token account scan ({TX_LIMIT} per account)")
     print(f"  Parallel workers: {PARALLEL_WORKERS}")
     print("=" * 50)
 
