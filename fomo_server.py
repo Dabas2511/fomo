@@ -20,6 +20,14 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime, timezone, timedelta
 
+# Optional changes module — server still works if missing
+try:
+    from fomo_changes import handle_changes_request
+    CHANGES_ENABLED = True
+except Exception:
+    CHANGES_ENABLED = False
+    print("  ⚠️  fomo_changes.py not available — /api/changes endpoint disabled")
+
 # India Standard Time
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -30,10 +38,10 @@ def now_ist():
 # CONFIG
 # ─────────────────────────────────────────────
 HELIUS_API_KEY   = os.environ.get("HELIUS_API_KEY", "")
-REFRESH_INTERVAL = 180
+REFRESH_INTERVAL = 600
 PORT             = int(os.environ.get("PORT", 8765))
 TOP_HOLDERS      = 200
-PARALLEL_WORKERS = 10
+PARALLEL_WORKERS = 40
 TX_LIMIT         = 100   # txns per token account (should be plenty)
 # ─────────────────────────────────────────────
 
@@ -56,6 +64,9 @@ HELIUS_API_URL   = f"https://api.helius.xyz/v0"
 
 # Use Railway volume /data if available, else local
 DATA_DIR = "/data" if os.path.isdir("/data") else "."
+SNAPSHOTS_DIR = f"{DATA_DIR}/snapshots"
+os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
+
 TOKENS_FILE              = f"{DATA_DIR}/fomo_tokens.json"
 GLOBAL_FOMO_WALLETS_FILE = f"{DATA_DIR}/global_fomo_wallets.json"
 WALLET_LABELS_FILE       = f"{DATA_DIR}/wallet_labels.json"
@@ -109,6 +120,28 @@ def save_wallet_labels():
     try:
         with open(WALLET_LABELS_FILE, "w") as f: json.dump(wallet_labels, f, indent=2)
     except Exception: pass
+
+# ── Snapshot writing (read by separate changes service) ──
+def snapshot_path(mint: str) -> str:
+    safe = mint.replace("/", "_")
+    return f"{SNAPSHOTS_DIR}/{safe}.json"
+
+def load_snapshots(mint: str) -> list:
+    try:
+        with open(snapshot_path(mint)) as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+def save_snapshot(mint: str, snapshot: dict):
+    snaps = load_snapshots(mint)
+    snaps.append(snapshot)
+    snaps = snaps[-3500:]  # ~7 days
+    try:
+        with open(snapshot_path(mint), "w") as f:
+            json.dump(snaps, f)
+    except Exception as e:
+        print(f"  ⚠️  Snapshot save error: {e}")
 
 def mark_as_fomo(wallet: str):
     with global_lock:
@@ -325,7 +358,9 @@ def refresh_token(mint: str):
 
     fomo_supply = sum(fomo_holders.values())
     fomo_pct    = round(fomo_supply / total_supply * 100, 4) if total_supply > 0 else 0
-    now_str     = now_ist().strftime("%Y-%m-%d %H:%M:%S")
+    now_dt      = now_ist()
+    now_str     = now_dt.strftime("%Y-%m-%d %H:%M:%S")
+    now_ts      = time.time()
 
     top_fomo = sorted(
         [{"wallet": w, "amount": round(a, 2),
@@ -334,6 +369,17 @@ def refresh_token(mint: str):
          for w, a in fomo_holders.items()],
         key=lambda x: x["amount"], reverse=True
     )[:50]
+
+    # Save snapshot for time-based comparisons
+    save_snapshot(mint, {
+        "ts": now_ts,
+        "time": now_str,
+        "fomo_pct": fomo_pct,
+        "fomo_count": len(fomo_holders),
+        "fomo_supply": round(fomo_supply, 2),
+        "total_supply": round(total_supply, 2),
+        "holders": {w: round(a, 2) for w, a in fomo_holders.items()},
+    })
 
     with tokens_lock:
         if mint not in tokens_state: return
@@ -426,6 +472,14 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/api/tokens":
             with tokens_lock:
                 self.send_json({mint: dict(s) for mint, s in tokens_state.items()})
+        elif CHANGES_ENABLED and self.path.startswith("/api/changes/"):
+            with global_lock:
+                labels = dict(wallet_labels)
+            try:
+                result = handle_changes_request(self.path, labels)
+                self.send_json(result)
+            except Exception as e:
+                self.send_json({"available": False, "error": str(e)}, 500)
         elif self.path.startswith("/api/token/"):
             mint = self.path.split("/api/token/")[1]
             with tokens_lock: data = tokens_state.get(mint)
