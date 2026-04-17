@@ -18,7 +18,13 @@ import threading
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
+# India Standard Time
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def now_ist():
+    return datetime.now(IST)
 
 # ─────────────────────────────────────────────
 # CONFIG
@@ -240,7 +246,7 @@ def refresh_token(mint: str):
         tokens_state[mint]["status"] = "refreshing"
 
     name = tokens_state.get(mint, {}).get("name", mint[:8])
-    print(f"\n🔄 [{datetime.now().strftime('%H:%M:%S')}] Refreshing {name}")
+    print(f"\n🔄 [{now_ist().strftime('%H:%M:%S')}] Refreshing {name}")
 
     token_info   = get_token_info(mint)
     decimals     = token_info["decimals"]
@@ -291,7 +297,7 @@ def refresh_token(mint: str):
 
     fomo_supply = sum(fomo_holders.values())
     fomo_pct    = round(fomo_supply / total_supply * 100, 4) if total_supply > 0 else 0
-    now_str     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str     = now_ist().strftime("%Y-%m-%d %H:%M:%S")
 
     top_fomo = sorted(
         [{"wallet": w, "amount": round(a, 2),
