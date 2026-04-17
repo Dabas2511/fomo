@@ -3,26 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>fomo Holdings</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<title>fomo Holdings — Solana Token Radar</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #080b10;
-    --surface: #0d1117;
-    --surface2: #131920;
-    --border: #1e2a36;
-    --fomo: #00e5ff;
-    --fomo-dim: rgba(0,229,255,0.10);
-    --fomo-glow: rgba(0,229,255,0.35);
-    --danger: #ff4d6d;
-    --danger-dim: rgba(255,77,109,0.12);
-    --warn: #f59e0b;
-    --text: #e2eaf2;
-    --text-dim: #5a7a96;
-    --text-mid: #8ba8c0;
-    --mono: 'Space Mono', monospace;
-    --sans: 'Syne', sans-serif;
-    --radius: 10px;
+    --bg: #0a0e1a;
+    --surface: #111726;
+    --surface-hover: #151c30;
+    --surface-elev: #1a2238;
+    --border: #1e2740;
+    --border-hover: #2d3a5c;
+
+    --accent: #8b7dff;
+    --accent-dim: rgba(139,125,255,0.12);
+    --accent-glow: rgba(139,125,255,0.4);
+    --accent-bright: #a594ff;
+
+    --success: #4ade80;
+    --danger: #f87171;
+    --warn: #fbbf24;
+
+    --text: #e8ecf5;
+    --text-dim: #7a849c;
+    --text-mid: #a4accc;
+
+    --mono: 'DM Mono', monospace;
+    --sans: 'Familjen Grotesk', sans-serif;
+
+    --radius: 14px;
+    --radius-sm: 8px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
 
@@ -32,355 +41,398 @@
     font-family: var(--sans);
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
   }
 
   body::before {
-    content:'';
-    position:fixed; inset:0;
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(139,125,255,0.08), transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(74,222,128,0.04), transparent 50%);
+  }
+  body::after {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
     background-image:
-      linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
-    background-size: 44px 44px;
-    pointer-events:none; z-index:0;
+      linear-gradient(rgba(139,125,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139,125,255,0.015) 1px, transparent 1px);
+    background-size: 56px 56px;
   }
 
-  .app { position:relative; z-index:1; display:flex; flex-direction:column; height:100vh; }
+  .app { position:relative; z-index:1; min-height:100vh; }
 
-  /* ── Top bar ── */
+  /* Top bar */
   .topbar {
     display:flex; align-items:center; justify-content:space-between;
-    padding: 0 28px;
-    height: 58px;
+    padding: 0 32px; height: 64px;
     border-bottom: 1px solid var(--border);
-    background: rgba(8,11,16,0.95);
-    backdrop-filter: blur(12px);
-    flex-shrink:0;
+    background: rgba(10,14,26,0.85);
+    backdrop-filter: blur(20px);
     position: sticky; top:0; z-index:100;
   }
-
-  .logo { font-size:18px; font-weight:800; letter-spacing:-0.3px; }
-  .logo span { color: var(--fomo); }
-
-  .add-token-form {
-    display:flex; align-items:center; gap:8px;
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand-mark {
+    width:28px; height:28px; border-radius:8px;
+    background: linear-gradient(135deg, var(--accent) 0%, #6b5fd9 100%);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:13px; color:#0a0e1a;
+    box-shadow: 0 4px 20px var(--accent-glow);
   }
+  .brand-name { font-size:17px; font-weight:700; letter-spacing:-0.3px; line-height:1.1; }
+  .brand-name span { color: var(--accent); font-weight:500; }
+  .brand-sub { font-family: var(--mono); font-size:9.5px; color: var(--text-dim); letter-spacing:1.5px; text-transform:uppercase; margin-top:2px; }
+
+  .topbar-right { display:flex; align-items:center; gap:12px; }
+  .cache-stat {
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-dim);
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 7px 12px; border-radius: var(--radius-sm); white-space: nowrap;
+  }
+  .cache-stat b { color: var(--accent); font-weight:500; }
 
   .mint-input {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 7px 14px;
-    border-radius: 6px;
-    width: 300px;
-    outline: none;
-    transition: border-color 0.2s;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--mono); font-size:11px;
+    padding: 9px 14px; border-radius: var(--radius-sm); width: 320px; outline:none;
+    transition: border-color 0.2s, box-shadow 0.2s;
   }
+  .mint-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
   .mint-input::placeholder { color: var(--text-dim); }
-  .mint-input:focus { border-color: var(--fomo); }
 
   .btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 7px 16px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
+    border: none; cursor: pointer; font-family: var(--sans); font-weight:600;
+    font-size: 13px; padding: 9px 16px; border-radius: var(--radius-sm);
+    transition: all 0.15s; white-space: nowrap; letter-spacing:-0.1px;
   }
   .btn-primary {
-    background: var(--fomo);
-    color: #000;
-    font-weight: 700;
+    background: var(--accent); color: #0a0e1a;
+    box-shadow: 0 4px 16px rgba(139,125,255,0.25);
   }
-  .btn-primary:hover { background: #33ecff; box-shadow: 0 0 16px var(--fomo-glow); }
+  .btn-primary:hover { background: var(--accent-bright); transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
   .btn-ghost {
-    background: transparent;
+    background: transparent; color: var(--text-mid);
     border: 1px solid var(--border);
-    color: var(--text-dim);
   }
-  .btn-ghost:hover { border-color: var(--fomo); color: var(--fomo); }
-  .btn-danger {
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--text-dim);
-    padding: 4px 8px;
-    font-size: 13px;
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+
+  /* Hero */
+  .hero {
+    padding: 48px 32px 24px;
+    max-width: 1400px; margin: 0 auto;
   }
-  .btn-danger:hover { color: var(--danger); }
-
-  /* ── Tab bar ── */
-  .tabbar {
-    display:flex; align-items:center; gap:2px;
-    padding: 0 20px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    overflow-x: auto;
-    flex-shrink: 0;
-    scrollbar-width: none;
+  .hero-title {
+    font-size: 28px; font-weight:700; letter-spacing:-0.5px; margin-bottom:6px;
   }
-  .tabbar::-webkit-scrollbar { display:none; }
+  .hero-title .accent { color: var(--accent); }
+  .hero-sub { color: var(--text-dim); font-size:14px; font-weight:400; }
 
-  .tab {
-    display:flex; align-items:center; gap:8px;
-    padding: 0 18px;
-    height: 44px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text-dim);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    white-space: nowrap;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-  .tab:hover { color: var(--text); }
-  .tab.active { color: var(--fomo); border-bottom-color: var(--fomo); }
-
-  .tab-status {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--border);
-    flex-shrink: 0;
-  }
-  .tab-status.ready { background: var(--fomo); box-shadow: 0 0 6px var(--fomo-glow); animation: pulse 2s infinite; }
-  .tab-status.loading { background: var(--warn); animation: blink 0.8s infinite; }
-
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-  .tab-pct {
-    font-family: var(--mono);
-    font-size: 10px;
-    background: var(--fomo-dim);
-    color: var(--fomo);
-    padding: 2px 7px;
-    border-radius: 100px;
+  /* Card grid */
+  .grid-section { padding: 0 32px 48px; max-width: 1400px; margin: 0 auto; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
   }
 
-  .empty-tabs {
-    padding: 80px 28px;
-    text-align: center;
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 2;
-  }
-  .empty-tabs strong { color: var(--text); font-family: var(--sans); font-size: 18px; display:block; margin-bottom:8px; }
-
-  /* ── Content area ── */
-  .content { flex:1; overflow-y: auto; padding: 28px; }
-
-  /* ── Token panel ── */
-  .token-panel { display:none; }
-  .token-panel.active { display:block; animation: fadeUp 0.3s ease; }
-
-  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-
-  .panel-header {
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom: 28px; flex-wrap:wrap; gap:12px;
-  }
-
-  .panel-title { font-size:22px; font-weight:800; }
-  .panel-title span { color: var(--fomo); }
-  .panel-mint {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    margin-top: 4px;
-  }
-
-  .panel-actions { display:flex; gap:8px; align-items:center; }
-
-  .last-updated {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text-dim);
-  }
-
-  /* ── Stats grid ── */
-  .stats-grid {
-    display:grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 24px;
-  }
-  @media(max-width:700px){ .stats-grid{grid-template-columns:1fr;} }
-
-  .stat-card {
-    background: var(--surface);
+  .card {
+    background: linear-gradient(180deg, var(--surface) 0%, rgba(17,23,38,0.6) 100%);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 24px 20px;
-    position:relative; overflow:hidden;
-    transition: border-color 0.2s;
+    padding: 22px;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
   }
-  .stat-card:hover { border-color: rgba(0,229,255,0.25); }
-  .stat-card::after {
-    content:''; position:absolute; top:0; left:0; right:0; height:2px;
-    background: linear-gradient(90deg, transparent, var(--fomo), transparent);
-    opacity:0; transition: opacity 0.3s;
+  .card::before {
+    content:''; position:absolute; top:0; left:0; right:0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-dim), transparent);
+    opacity: 0; transition: opacity 0.3s;
   }
-  .stat-card:hover::after { opacity:1; }
+  .card:hover {
+    border-color: var(--border-hover); transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 0 1px var(--accent-dim);
+  }
+  .card:hover::before { opacity: 1; }
 
-  .stat-label {
-    font-size:10px; font-weight:600; letter-spacing:1.5px;
-    text-transform:uppercase; color:var(--text-dim); margin-bottom:12px;
-  }
-  .stat-value {
-    font-family: var(--mono);
-    font-size: 38px; font-weight:700;
-    color: var(--fomo); line-height:1; letter-spacing:-1px;
-  }
-  .stat-value.neutral { color: var(--text); }
-  .stat-sub { font-family:var(--mono); font-size:11px; color:var(--text-dim); margin-top:6px; }
-
-  /* ── Chart row ── */
-  .chart-row {
-    display:grid;
-    grid-template-columns: 240px 1fr;
-    gap: 14px;
-    margin-bottom: 24px;
-  }
-  @media(max-width:700px){ .chart-row{grid-template-columns:1fr;} }
-
-  .donut-card {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); padding:24px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-  }
-  .donut-wrap { position:relative; width:150px; height:150px; margin-bottom:18px; }
-  .donut-wrap svg { transform: rotate(-90deg); }
-  .donut-center {
-    position:absolute; inset:0;
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-  }
-  .donut-pct { font-family:var(--mono); font-size:24px; font-weight:700; color:var(--fomo); }
-  .donut-sub { font-size:10px; color:var(--text-dim); letter-spacing:1px; text-transform:uppercase; margin-top:2px; }
-  .legend { display:flex; flex-direction:column; gap:9px; width:100%; }
-  .legend-item { display:flex; align-items:center; gap:9px; font-size:12px; }
-  .legend-dot { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
-  .legend-name { color:var(--text-mid); flex:1; }
-  .legend-val { font-family:var(--mono); color:var(--text); font-size:11px; }
-
-  .history-card {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); padding:24px;
-  }
-  .card-title {
-    font-size:10px; font-weight:600; letter-spacing:1.5px;
-    text-transform:uppercase; color:var(--text-dim); margin-bottom:18px;
-  }
-  .sparkline-wrap { width:100%; height:110px; }
-  .no-data {
+  .card-head { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:18px; }
+  .card-ident { display:flex; align-items:center; gap:12px; min-width:0; }
+  .card-avatar {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, #3d3668, #1f1a40);
     display:flex; align-items:center; justify-content:center;
-    height:110px; color:var(--text-dim); font-family:var(--mono); font-size:11px;
+    font-size: 14px; font-weight: 800; color: var(--accent-bright);
+    flex-shrink: 0; letter-spacing:-0.5px;
   }
+  .card-title { min-width:0; flex:1; }
+  .card-name {
+    font-size:16px; font-weight:700; letter-spacing:-0.3px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .card-mint { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-top:2px; }
+  .card-close {
+    background: transparent; border: 1px solid var(--border); cursor: pointer;
+    color: var(--text-dim); width: 24px; height: 24px; border-radius: 6px;
+    display:flex; align-items:center; justify-content:center; font-size: 14px; line-height:1;
+    transition: all 0.15s; flex-shrink:0;
+  }
+  .card-close:hover { background: var(--danger); color: #fff; border-color: var(--danger); }
 
-  /* ── Table ── */
-  .table-card {
-    background:var(--surface); border:1px solid var(--border);
-    border-radius:var(--radius); overflow:hidden;
+  .card-metric-main { display:flex; align-items:baseline; gap: 10px; margin-bottom: 14px; }
+  .card-pct {
+    font-family: var(--mono); font-size: 32px; font-weight: 500;
+    color: var(--accent); letter-spacing:-1px;
+    text-shadow: 0 0 24px var(--accent-glow);
   }
-  .table-header {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:16px 20px; border-bottom:1px solid var(--border);
+  .card-pct.zero { color: var(--text-dim); text-shadow: none; }
+  .card-pct-label { font-size: 10px; color: var(--text-dim); font-family: var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+
+  .card-spark { margin-bottom: 14px; height: 38px; }
+  .card-spark svg { width:100%; height:100%; display:block; }
+
+  .card-stats { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 14px; border-top: 1px dashed var(--border); }
+  .card-stat-val { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--text); }
+  .card-stat-lbl { font-size: 9.5px; color: var(--text-dim); font-family: var(--mono); letter-spacing: 0.8px; text-transform: uppercase; margin-top: 2px; }
+
+  .card-footer {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-top: 14px; padding-top: 14px; border-top: 1px dashed var(--border);
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
   }
-  .badge {
-    font-family:var(--mono); font-size:10px;
-    background:var(--fomo-dim); color:var(--fomo);
-    border:1px solid rgba(0,229,255,0.2);
-    padding:3px 10px; border-radius:100px;
+  .card-status { display:inline-flex; align-items:center; gap: 6px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success); }
+  .status-dot.refreshing { background: var(--warn); animation: pulse 1s ease infinite; }
+  @keyframes pulse { 0%,100% {opacity:1} 50% {opacity:0.4} }
+
+  .card-add {
+    border: 2px dashed var(--border); background: transparent; cursor: pointer;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    gap: 14px; min-height: 280px; transition: all 0.2s; border-radius: var(--radius);
   }
-  table { width:100%; border-collapse:collapse; }
+  .card-add:hover { border-color: var(--accent); background: var(--accent-dim); }
+  .card-add-icon {
+    width: 52px; height: 52px; border-radius: 14px; background: var(--accent-dim);
+    display:flex; align-items:center; justify-content:center;
+    color: var(--accent); font-size: 28px; font-weight: 300; line-height: 1;
+  }
+  .card-add-text { color: var(--text-dim); font-size: 14px; font-weight: 500; }
+  .card-add:hover .card-add-text { color: var(--accent); }
+
+  /* Detail view */
+  .detail-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(10,14,26,0.95);
+    backdrop-filter: blur(10px);
+    overflow-y: auto;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+
+  .detail-wrap { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+  .detail-head {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom: 28px;
+  }
+  .back-btn {
+    display:inline-flex; align-items:center; gap: 8px;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-mid); padding: 9px 14px; border-radius: var(--radius-sm);
+    cursor: pointer; font-family: var(--sans); font-size: 13px; font-weight:500;
+    transition: all 0.15s;
+  }
+  .back-btn:hover { color: var(--text); border-color: var(--border-hover); }
+
+  .detail-title-wrap { display:flex; align-items:center; gap: 18px; margin-bottom: 32px; }
+  .detail-avatar {
+    width: 56px; height: 56px; border-radius: 14px;
+    background: linear-gradient(135deg, #3d3668, #1f1a40);
+    display:flex; align-items:center; justify-content:center;
+    font-size: 22px; font-weight: 800; color: var(--accent-bright); letter-spacing:-1px;
+  }
+  .detail-title { font-size: 32px; font-weight:700; letter-spacing:-0.5px; }
+  .detail-mint { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top:2px; }
+
+  .metrics-row {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+    margin-bottom: 28px;
+  }
+  .metric-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px 22px;
+  }
+  .metric-label {
+    font-family: var(--mono); font-size: 10px; color: var(--text-dim);
+    letter-spacing: 1.2px; text-transform: uppercase; margin-bottom: 10px;
+  }
+  .metric-value { font-family: var(--mono); font-size: 30px; font-weight: 500; color: var(--text); letter-spacing:-0.5px; }
+  .metric-value.accent { color: var(--accent); }
+  .metric-sub { font-family: var(--mono); font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+  .detail-grid { display:grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 24px; }
+  @media (max-width: 960px) { .detail-grid { grid-template-columns: 1fr; } }
+
+  .chart-panel, .holders-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow:hidden;
+  }
+  .panel-head {
+    padding: 18px 22px; border-bottom: 1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .panel-title {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .panel-body { padding: 22px; }
+
+  .donut-wrap { display:flex; flex-direction:column; align-items:center; gap: 20px; }
+  .donut-svg { width: 180px; height: 180px; }
+  .legend { display: flex; flex-direction: column; gap: 10px; width:100%; }
+  .legend-item {
+    display: flex; align-items: center; justify-content: space-between;
+    font-family: var(--mono); font-size: 11px;
+  }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+  .legend-name { flex:1; color: var(--text-mid); margin-left: 10px; }
+  .legend-val { color: var(--text); }
+
+  /* Holders Table */
+  table { width: 100%; border-collapse: collapse; }
   thead th {
-    font-family:var(--mono); font-size:10px; letter-spacing:1.5px;
-    text-transform:uppercase; color:var(--text-dim);
-    padding:10px 20px; text-align:left;
-    border-bottom:1px solid var(--border);
-    background:var(--surface2);
+    padding: 12px 22px; text-align: left; font-family: var(--mono);
+    font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--text-dim); background: rgba(17,23,38,0.4);
+    border-bottom: 1px solid var(--border);
   }
-  thead th:last-child { text-align:right; }
-  tbody tr { border-bottom:1px solid rgba(30,42,54,0.5); transition:background 0.15s; }
-  tbody tr:hover { background:var(--surface2); }
-  tbody tr:last-child { border-bottom:none; }
-  tbody td { padding:12px 20px; font-family:var(--mono); font-size:12px; }
-  .rank-cell { color:var(--text-dim); width:40px; }
-  .wallet-cell a { color:var(--fomo); text-decoration:none; }
-  .wallet-cell a:hover { text-decoration:underline; }
-  .amount-cell { color:var(--text); }
-  .pct-cell { text-align:right; }
-  .pct-bar-wrap { display:flex; align-items:center; gap:10px; justify-content:flex-end; }
-  .pct-bar { width:70px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
-  .pct-bar-fill { height:100%; background:var(--fomo); border-radius:2px; box-shadow:0 0 5px var(--fomo-glow); }
+  thead th:last-child { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface-hover); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 14px 22px; font-family: var(--mono); font-size: 12px; vertical-align: middle; }
+  .rank-cell { color: var(--text-dim); width: 46px; }
 
-  .empty-state { padding:40px; text-align:center; color:var(--text-dim); font-family:var(--mono); font-size:12px; }
-
-  /* ── Initializing overlay ── */
-  .init-overlay {
-    padding: 60px 20px; text-align:center;
+  .wallet-link {
+    color: var(--accent); cursor: pointer; padding: 4px 8px;
+    border-radius: 6px; transition: background 0.15s; display: inline-block;
+    font-family: var(--mono);
   }
-  .init-spinner {
-    width:40px; height:40px; border:2px solid var(--border);
-    border-top-color:var(--fomo); border-radius:50%;
-    animation: spin 0.8s linear infinite;
-    margin: 0 auto 16px;
+  .wallet-link:hover { background: var(--accent-dim); }
+  .wallet-label-text { color: var(--success); font-weight:600; }
+  .wallet-short-dim { color: var(--text-dim); font-size: 10.5px; margin-left: 6px; }
+  .solscan-link {
+    margin-left: 8px; color: var(--text-dim); font-size: 13px;
+    text-decoration: none; opacity: 0.5; transition: opacity 0.15s;
   }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .init-msg { color:var(--text-dim); font-family:var(--mono); font-size:12px; }
+  .solscan-link:hover { opacity: 1; color: var(--accent); }
 
-  /* Toast */
+  .amount-cell { color: var(--text); }
+  .pct-cell { text-align: right; }
+  .pct-bar-wrap { display:flex; align-items:center; gap: 10px; justify-content: flex-end; }
+  .pct-bar { width: 80px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .pct-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; box-shadow: 0 0 8px var(--accent-glow); }
+
+  .history-chart { height: 200px; }
+
+  /* Modal */
+  .modal-bg {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center; z-index: 300;
+  }
+  .modal {
+    background: var(--surface-elev); border: 1px solid var(--border-hover);
+    border-radius: var(--radius); padding: 28px; min-width: 440px; max-width: 90vw;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+  }
+  .modal h3 { font-size: 17px; font-weight: 700; margin-bottom: 6px; letter-spacing:-0.3px; }
+  .modal .wallet-addr {
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-dim);
+    margin: 8px 0 18px; word-break: break-all;
+    background: var(--bg); padding: 10px 12px; border-radius: 6px;
+  }
+  .modal label { font-size: 10px; color: var(--text-dim); letter-spacing: 1.2px; text-transform: uppercase; }
+  .modal-input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); padding: 10px 12px; border-radius: var(--radius-sm);
+    font-size: 13px; outline: none; margin-top: 6px;
+    font-family: var(--sans);
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 18px; justify-content: flex-end; }
+
+  .empty-grid { padding: 80px 20px; text-align: center; color: var(--text-dim); }
+  .empty-title { font-size: 18px; font-weight: 600; color: var(--text-mid); margin-bottom: 8px; }
+  .empty-sub { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+
   .toast {
-    position:fixed; bottom:24px; right:24px;
-    background:var(--surface2); border:1px solid var(--border);
-    color:var(--text); font-family:var(--mono); font-size:12px;
-    padding:12px 20px; border-radius:8px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.4);
-    z-index:999; transition:opacity 0.3s;
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface-elev); border: 1px solid var(--border-hover);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 12px 20px; border-radius: var(--radius-sm);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5); z-index: 999;
+    transition: opacity 0.3s;
   }
-  .toast.error { border-color:var(--danger); color:var(--danger); }
-  .toast.success { border-color:var(--fomo); color:var(--fomo); }
+  .toast.error { border-color: var(--danger); color: var(--danger); }
+  .toast.success { border-color: var(--success); color: var(--success); }
 </style>
 </head>
 <body>
-<div class="app">
 
-  <!-- Top bar -->
+<div class="app">
   <div class="topbar">
-    <div class="logo"><span>fomo</span> Holdings</div>
-    <div class="add-token-form">
-      <input class="mint-input" id="mint-input" placeholder="Paste token mint address..." />
+    <div class="brand">
+      <div class="brand-mark">ƒ</div>
+      <div>
+        <div class="brand-name"><span>fomo</span> Holdings</div>
+        <div class="brand-sub">Solana Radar</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="cache-stat" id="cache-stat">Cache: <b>—</b> fomo wallets</div>
+      <input class="mint-input" id="mint-input" placeholder="Paste token mint address..." onkeydown="if(event.key==='Enter') addToken()" />
       <button class="btn btn-primary" onclick="addToken()">+ Track Token</button>
     </div>
   </div>
 
-  <!-- Tab bar -->
-  <div class="tabbar" id="tabbar">
-    <div class="empty-tabs" id="empty-tabs" style="display:none; padding:10px 0; font-size:11px; color:var(--text-dim);">
-      No tokens tracked yet — paste a mint address above ↑
-    </div>
+  <div class="hero">
+    <div class="hero-title">Track <span class="accent">fomo</span> app users across Solana tokens</div>
+    <div class="hero-sub">Real-time on-chain detection. See what % of holders are active fomo traders.</div>
   </div>
 
-  <!-- Content -->
-  <div class="content" id="content">
-    <div class="empty-tabs" id="empty-content">
-      <strong>Nothing tracked yet</strong>
-      Paste a Solana token mint address above to start tracking<br>
-      fomo holder % in real time.
+  <div class="grid-section">
+    <div class="grid" id="grid"></div>
+  </div>
+</div>
+
+<div class="detail-overlay" id="detail-view" style="display:none">
+  <div class="detail-wrap">
+    <div class="detail-head">
+      <button class="back-btn" onclick="closeDetail()">← Back to dashboard</button>
+      <button class="btn btn-ghost" id="detail-refresh">↻ Refresh</button>
+    </div>
+    <div id="detail-body"></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="label-modal" style="display:none" onclick="closeLabel(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Label wallet</h3>
+    <div class="wallet-addr" id="modal-wallet-addr"></div>
+    <label>Name / Label</label>
+    <input class="modal-input" id="modal-label-input" placeholder="e.g. whale1, @trader, team wallet..." onkeydown="if(event.key==='Enter') submitLabel()"/>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('label-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-ghost" onclick="deleteLabel()" style="color:var(--danger)">Remove</button>
+      <button class="btn btn-primary" onclick="submitLabel()">Save</button>
     </div>
   </div>
-
 </div>
 
 <script>
-const API = 'YOUR_RAILWAY_URL'; // e.g. https://fomo-dashboard.up.railway.app
-let activeTab = null;
-let tokenData = {};   // { mint: data }
-let pollInterval = null;
-
-// ── API calls ──────────────────────────────────────────────
+const API = 'https://web-production-47e4c.up.railway.app';
+let tokenData = {};
+let allLabels = {};
+let modalWallet = '';
+let currentDetail = null;
 
 async function apiFetch(path, opts={}) {
   const resp = await fetch(API + path, opts);
@@ -391,43 +443,28 @@ async function addToken() {
   const input = document.getElementById('mint-input');
   const mint = input.value.trim();
   if (!mint) return;
-
-  if (tokenData[mint]) { showToast('Already tracking this token', 'error'); return; }
-
+  if (tokenData[mint]) { showToast('Already tracking', 'error'); return; }
   try {
     const res = await apiFetch('/api/tokens', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({mint})
     });
     if (res.ok) {
       input.value = '';
-      showToast('Token added! Scanning holders...', 'success');
+      showToast('Token added — scanning holders...', 'success');
       await pollData();
-      switchTab(mint);
     } else {
-      showToast(res.message || 'Error adding token', 'error');
+      showToast(res.message || 'Error', 'error');
     }
-  } catch(e) {
-    showToast('Cannot reach server', 'error');
-  }
+  } catch(e) { showToast('Cannot reach server', 'error'); }
 }
 
 async function removeToken(mint, e) {
   e.stopPropagation();
   if (!confirm('Stop tracking this token?')) return;
-  try {
-    await apiFetch(`/api/token/${mint}`, { method: 'DELETE' });
-    delete tokenData[mint];
-    document.getElementById(`tab-${mint}`)?.remove();
-    document.getElementById(`panel-${mint}`)?.remove();
-    const remaining = Object.keys(tokenData);
-    if (remaining.length > 0) switchTab(remaining[0]);
-    else { activeTab = null; checkEmpty(); }
-    showToast('Token removed', 'success');
-  } catch(e) {
-    showToast('Error removing token', 'error');
-  }
+  await apiFetch(`/api/token/${mint}`, {method:'DELETE'});
+  delete tokenData[mint];
+  renderGrid();
 }
 
 async function triggerRefresh(mint) {
@@ -435,105 +472,200 @@ async function triggerRefresh(mint) {
   showToast('Refreshing...', 'success');
 }
 
-// ── Polling ────────────────────────────────────────────────
+function openLabelModal(wallet, currentLabel='') {
+  modalWallet = wallet;
+  document.getElementById('modal-wallet-addr').textContent = wallet;
+  document.getElementById('modal-label-input').value = currentLabel;
+  document.getElementById('label-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-label-input').focus(), 50);
+}
 
-async function pollData() {
+function closeLabel(e) {
+  if (e.target.id === 'label-modal') document.getElementById('label-modal').style.display = 'none';
+}
+
+async function submitLabel() {
+  const name = document.getElementById('modal-label-input').value.trim();
   try {
-    const all = await apiFetch('/api/tokens');
-    const mints = Object.keys(all);
-
-    mints.forEach(mint => {
-      const data = all[mint];
-      tokenData[mint] = data;
-      ensureTab(mint, data);
-      ensurePanel(mint);
-      updateTab(mint, data);
-      if (activeTab === mint) renderPanel(mint, data);
+    await apiFetch('/api/labels', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({wallet: modalWallet, name})
     });
+    if (name) allLabels[modalWallet] = name;
+    else delete allLabels[modalWallet];
+    document.getElementById('label-modal').style.display = 'none';
+    showToast(name ? `Labeled as "${name}"` : 'Label removed', 'success');
+    if (currentDetail) renderDetail(currentDetail);
+    renderGrid();
+  } catch(e) { showToast('Label save failed', 'error'); }
+}
 
-    checkEmpty();
-  } catch(e) {
-    // server not reachable
+async function deleteLabel() {
+  try {
+    await apiFetch(`/api/label/${modalWallet}`, {method:'DELETE'});
+    delete allLabels[modalWallet];
+    document.getElementById('label-modal').style.display = 'none';
+    showToast('Label removed', 'success');
+    if (currentDetail) renderDetail(currentDetail);
+    renderGrid();
+  } catch(e) { showToast('Failed to remove', 'error'); }
+}
+
+function short(addr) { return `${addr.slice(0,4)}…${addr.slice(-4)}`; }
+function shortMid(addr) { return `${addr.slice(0,6)}…${addr.slice(-4)}`; }
+
+function sparklineSVG(history) {
+  if (!history || history.length < 2) {
+    return '<svg viewBox="0 0 100 38"><line x1="0" y1="19" x2="100" y2="19" stroke="rgba(139,125,255,0.2)" stroke-width="1" stroke-dasharray="2,3"/></svg>';
   }
+  const vals = history.map(h => h.fomo_pct);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1)) * 100;
+    const y = 36 - ((v - min) / range) * 32 - 2;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return `<svg viewBox="0 0 100 38" preserveAspectRatio="none">
+    <defs><linearGradient id="sparkg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8b7dff" stop-opacity="0.35"/><stop offset="100%" stop-color="#8b7dff" stop-opacity="0"/></linearGradient></defs>
+    <polygon points="0,38 ${pts} 100,38" fill="url(#sparkg)"/>
+    <polyline points="${pts}" fill="none" stroke="#8b7dff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>`;
 }
 
-// ── Tab management ─────────────────────────────────────────
+function renderCard(mint, data) {
+  const name = data.name || mint.slice(0,8);
+  const symbol = (data.name || '??').slice(0,2).toUpperCase();
+  const status = data.status || 'initializing';
+  const pct = data.fomo_pct ?? 0;
+  const holders = data.fomo_holders_count ?? 0;
+  const total = data.total_holders ?? 0;
+  const supply = data.fomo_supply ?? 0;
+  const statusClass = status === 'refreshing' ? 'refreshing' : '';
+  const statusText = status === 'ready' ? 'Live' : status === 'refreshing' ? 'Scanning' : 'Loading';
+  const pctClass = pct === 0 ? 'zero' : '';
 
-function ensureTab(mint, data) {
-  if (document.getElementById(`tab-${mint}`)) return;
-  const tabbar = document.getElementById('tabbar');
-  const tab = document.createElement('div');
-  tab.className = 'tab';
-  tab.id = `tab-${mint}`;
-  tab.onclick = () => switchTab(mint);
-  tab.innerHTML = `
-    <div class="tab-status loading" id="tabdot-${mint}"></div>
-    <span id="tabname-${mint}">${data.name || mint.slice(0,8)+'...'}</span>
-    <span class="tab-pct" id="tabpct-${mint}" style="display:none">—</span>
-    <button class="btn-danger" onclick="removeToken('${mint}', event)" title="Remove">✕</button>`;
-  tabbar.appendChild(tab);
-  if (!activeTab) switchTab(mint);
+  return `<div class="card" onclick="openDetail('${mint}')">
+    <div class="card-head">
+      <div class="card-ident">
+        <div class="card-avatar">${symbol}</div>
+        <div class="card-title">
+          <div class="card-name">${name}</div>
+          <div class="card-mint">${short(mint)}</div>
+        </div>
+      </div>
+      <button class="card-close" onclick="removeToken('${mint}', event)" title="Remove">×</button>
+    </div>
+    <div class="card-metric-main">
+      <div class="card-pct ${pctClass}">${pct.toFixed(2)}%</div>
+      <div class="card-pct-label">on fomo</div>
+    </div>
+    <div class="card-spark">${sparklineSVG(data.history)}</div>
+    <div class="card-stats">
+      <div>
+        <div class="card-stat-val">${holders} / ${total}</div>
+        <div class="card-stat-lbl">fomo holders</div>
+      </div>
+      <div>
+        <div class="card-stat-val">${supply.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+        <div class="card-stat-lbl">fomo supply</div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <div class="card-status"><span class="status-dot ${statusClass}"></span>${statusText}</div>
+      <div>${data.last_updated ? data.last_updated.split(' ')[1] : '—'}</div>
+    </div>
+  </div>`;
 }
 
-function updateTab(mint, data) {
-  const dot = document.getElementById(`tabdot-${mint}`);
-  const name = document.getElementById(`tabname-${mint}`);
-  const pct  = document.getElementById(`tabpct-${mint}`);
-  if (!dot) return;
-  dot.className = 'tab-status ' + (data.status === 'ready' ? 'ready' : 'loading');
-  if (name) name.textContent = data.name || mint.slice(0,8)+'...';
-  if (pct && data.status === 'ready') {
-    pct.style.display = '';
-    pct.textContent = data.fomo_pct?.toFixed(1) + '%';
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const mints = Object.keys(tokenData);
+  const cards = mints.map(m => renderCard(m, tokenData[m])).join('');
+  const addCard = `<div class="card-add" onclick="document.getElementById('mint-input').focus()">
+    <div class="card-add-icon">+</div>
+    <div class="card-add-text">Add Token</div>
+  </div>`;
+  grid.innerHTML = cards + addCard;
+}
+
+function openDetail(mint) {
+  currentDetail = mint;
+  document.getElementById('detail-view').style.display = 'block';
+  document.body.style.overflow = 'hidden';
+  renderDetail(mint);
+  document.getElementById('detail-refresh').onclick = () => triggerRefresh(mint);
+}
+function closeDetail() {
+  currentDetail = null;
+  document.getElementById('detail-view').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function renderDetail(mint) {
+  const data = tokenData[mint];
+  if (!data) return;
+  const name = data.name || mint.slice(0,8);
+  const symbol = (data.name || '??').slice(0,2).toUpperCase();
+  const pct = data.fomo_pct ?? 0;
+  const nonPct = 100 - pct;
+  const holders = data.fomo_holders_count ?? 0;
+  const total = data.total_holders ?? 0;
+  const supply = data.fomo_supply ?? 0;
+  const totalSupply = data.total_supply ?? 0;
+
+  const C = 2 * Math.PI * 60;
+  const fomoLen = (pct / 100) * C;
+  const donut = `<svg class="donut-svg" viewBox="0 0 160 160">
+    <circle cx="80" cy="80" r="60" fill="none" stroke="var(--border)" stroke-width="14"/>
+    <circle cx="80" cy="80" r="60" fill="none" stroke="var(--accent)" stroke-width="14"
+            stroke-dasharray="${fomoLen} ${C}" stroke-linecap="round" transform="rotate(-90 80 80)"
+            style="filter: drop-shadow(0 0 12px var(--accent-glow))"/>
+    <text x="80" y="82" text-anchor="middle" fill="var(--accent)" font-family="DM Mono, monospace" font-size="22" font-weight="500" letter-spacing="-1">${pct.toFixed(1)}%</text>
+    <text x="80" y="100" text-anchor="middle" fill="var(--text-dim)" font-family="DM Mono, monospace" font-size="8" letter-spacing="1.5">ON FOMO</text>
+  </svg>`;
+
+  const hist = data.history || [];
+  let chartSVG = '';
+  if (hist.length >= 2) {
+    const vals = hist.map(h => h.fomo_pct);
+    const min = Math.min(...vals, 0), max = Math.max(...vals, 0.1);
+    const range = max - min || 1;
+    const w = 800, h = 200, pad = 30;
+    const ptsArr = vals.map((v, i) => {
+      const x = pad + (i / (vals.length - 1)) * (w - pad*2);
+      const y = h - pad - ((v - min) / range) * (h - pad*2);
+      return [x, y];
+    });
+    const pts = ptsArr.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
+    const lastPt = ptsArr[ptsArr.length - 1];
+    chartSVG = `<svg class="history-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%">
+      <defs><linearGradient id="histg" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#8b7dff" stop-opacity="0.3"/><stop offset="100%" stop-color="#8b7dff" stop-opacity="0"/></linearGradient></defs>
+      <polygon points="${pad},${h-pad} ${pts} ${w-pad},${h-pad}" fill="url(#histg)"/>
+      <polyline points="${pts}" fill="none" stroke="#8b7dff" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="${lastPt[0]}" cy="${lastPt[1]}" r="4" fill="#8b7dff" style="filter: drop-shadow(0 0 6px var(--accent-glow))"/>
+    </svg>`;
+  } else {
+    chartSVG = `<div style="padding:60px; text-align:center; color:var(--text-dim); font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px;">COLLECTING DATA POINTS…</div>`;
   }
-}
 
-function switchTab(mint) {
-  activeTab = mint;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.token-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById(`tab-${mint}`)?.classList.add('active');
-  document.getElementById(`panel-${mint}`)?.classList.add('active');
-  if (tokenData[mint]) renderPanel(mint, tokenData[mint]);
-}
-
-// ── Panel management ───────────────────────────────────────
-
-function ensurePanel(mint) {
-  if (document.getElementById(`panel-${mint}`)) return;
-  const content = document.getElementById('content');
-  const panel = document.createElement('div');
-  panel.className = 'token-panel';
-  panel.id = `panel-${mint}`;
-  content.appendChild(panel);
-}
-
-function renderPanel(mint, data) {
-  const panel = document.getElementById(`panel-${mint}`);
-  if (!panel) return;
-
-  if (data.status === 'initializing' || data.status === 'refreshing' && data.total_holders === 0) {
-    panel.innerHTML = `
-      <div class="init-overlay">
-        <div class="init-spinner"></div>
-        <div class="init-msg">Scanning holders for fomo activity...<br>This may take a few minutes.</div>
-      </div>`;
-    return;
-  }
-
-  const fomoPct   = data.fomo_pct ?? 0;
-  const circ      = 345;
-  const offset    = circ - (fomoPct / 100) * circ;
-  const updTime   = data.last_updated ? data.last_updated.split(' ')[1] : '—';
-  const holders   = data.top_fomo_holders || [];
-  const maxAmt    = holders[0]?.amount || 1;
-
-  const rows = holders.map((h, i) => {
-    const short = `${h.wallet.slice(0,6)}...${h.wallet.slice(-4)}`;
-    const bar   = Math.min(100, (h.amount / maxAmt) * 100).toFixed(1);
+  const holdersList = data.top_fomo_holders || [];
+  const maxAmt = holdersList.length ? Math.max(...holdersList.map(h => h.amount)) : 1;
+  const rows = holdersList.map((h, i) => {
+    const s = shortMid(h.wallet);
+    const label = allLabels[h.wallet] || h.label || '';
+    const walletEsc = h.wallet.replace(/'/g,"\\'");
+    const labelEsc = label.replace(/'/g,"\\'");
+    const bar = Math.min(100, (h.amount/maxAmt)*100).toFixed(1);
+    const display = label
+      ? `<span class="wallet-label-text">${label}</span><span class="wallet-short-dim">${s}</span>`
+      : s;
     return `<tr>
       <td class="rank-cell">#${i+1}</td>
-      <td class="wallet-cell"><a href="https://solscan.io/account/${h.wallet}" target="_blank" title="${h.wallet}">${short}</a></td>
+      <td>
+        <span class="wallet-link" onclick="openLabelModal('${walletEsc}','${labelEsc}')" title="Click to label">${display}</span>
+        <a class="solscan-link" href="https://solscan.io/account/${h.wallet}" target="_blank" onclick="event.stopPropagation()" title="View on Solscan">⧉</a>
+      </td>
       <td class="amount-cell">${h.amount.toLocaleString()}</td>
       <td class="pct-cell">
         <div class="pct-bar-wrap">
@@ -544,149 +676,130 @@ function renderPanel(mint, data) {
     </tr>`;
   }).join('');
 
-  panel.innerHTML = `
-    <div class="panel-header">
+  document.getElementById('detail-body').innerHTML = `
+    <div class="detail-title-wrap">
+      <div class="detail-avatar">${symbol}</div>
       <div>
-        <div class="panel-title"><span>${data.name || '—'}</span></div>
-        <div class="panel-mint">${mint}</div>
-      </div>
-      <div class="panel-actions">
-        <span class="last-updated">Updated ${updTime}</span>
-        <button class="btn btn-ghost" onclick="triggerRefresh('${mint}')">↺ Refresh</button>
+        <div class="detail-title">${name}</div>
+        <div class="detail-mint">${mint}</div>
       </div>
     </div>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">fomo % of Supply</div>
-        <div class="stat-value">${fomoPct.toFixed(1)}%</div>
-        <div class="stat-sub">${(data.fomo_supply||0).toLocaleString()} tokens</div>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">fomo % of supply</div>
+        <div class="metric-value accent">${pct.toFixed(2)}%</div>
+        <div class="metric-sub">${supply.toLocaleString(undefined,{maximumFractionDigits:2})} tokens</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">fomo Holders</div>
-        <div class="stat-value">${(data.fomo_holders_count||0).toLocaleString()}</div>
-        <div class="stat-sub">of ${(data.total_holders||0).toLocaleString()} total holders</div>
+      <div class="metric-card">
+        <div class="metric-label">fomo holders</div>
+        <div class="metric-value">${holders}</div>
+        <div class="metric-sub">of ${total} scanned</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">Non-fomo %</div>
-        <div class="stat-value neutral">${(data.non_fomo_pct??100).toFixed(1)}%</div>
-        <div class="stat-sub">${((data.total_supply||0)-(data.fomo_supply||0)).toLocaleString()} tokens</div>
+      <div class="metric-card">
+        <div class="metric-label">non-fomo %</div>
+        <div class="metric-value">${nonPct.toFixed(2)}%</div>
+        <div class="metric-sub">${(totalSupply - supply).toLocaleString(undefined,{maximumFractionDigits:2})} tokens</div>
       </div>
-    </div>
-
-    <div class="chart-row">
-      <div class="donut-card">
-        <div class="donut-wrap">
-          <svg viewBox="0 0 150 150" width="150" height="150">
-            <circle cx="75" cy="75" r="55" fill="none" stroke="#1e2a36" stroke-width="16"/>
-            <circle cx="75" cy="75" r="55" fill="none" stroke="#00e5ff" stroke-width="16"
-              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
-              stroke-linecap="round"
-              style="transition:stroke-dashoffset 0.8s ease; filter:drop-shadow(0 0 5px rgba(0,229,255,0.5))"/>
-          </svg>
-          <div class="donut-center">
-            <div class="donut-pct">${fomoPct.toFixed(1)}%</div>
-            <div class="donut-sub">on fomo</div>
-          </div>
-        </div>
-        <div class="legend">
-          <div class="legend-item">
-            <div class="legend-dot" style="background:#00e5ff"></div>
-            <span class="legend-name">fomo users</span>
-            <span class="legend-val">${fomoPct.toFixed(2)}%</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-dot" style="background:#1e2a36"></div>
-            <span class="legend-name">other wallets</span>
-            <span class="legend-val">${(data.non_fomo_pct??100).toFixed(2)}%</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="history-card">
-        <div class="card-title">fomo % over time</div>
-        <div class="sparkline-wrap" id="spark-${mint}">
-          ${renderSparklineHTML(data.history || [])}
-        </div>
+      <div class="metric-card">
+        <div class="metric-label">total supply</div>
+        <div class="metric-value">${totalSupply.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+        <div class="metric-sub">decimals: ${data.decimals ?? 6}</div>
       </div>
     </div>
 
-    <div class="table-card">
-      <div class="table-header">
-        <div class="card-title" style="margin-bottom:0">Top fomo Holders</div>
-        <div class="badge">${(data.fomo_holders_count||0).toLocaleString()} holders</div>
+    <div class="detail-grid">
+      <div class="chart-panel">
+        <div class="panel-head"><div class="panel-title">Distribution</div></div>
+        <div class="panel-body">
+          <div class="donut-wrap">
+            ${donut}
+            <div class="legend">
+              <div class="legend-item">
+                <div style="display:flex;align-items:center;"><div class="legend-dot" style="background:var(--accent)"></div><span class="legend-name">fomo users</span></div>
+                <span class="legend-val">${pct.toFixed(2)}%</span>
+              </div>
+              <div class="legend-item">
+                <div style="display:flex;align-items:center;"><div class="legend-dot" style="background:var(--border)"></div><span class="legend-name">other wallets</span></div>
+                <span class="legend-val">${nonPct.toFixed(2)}%</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      ${holders.length ? `
-        <table>
-          <thead><tr>
-            <th>#</th><th>Wallet</th><th>Amount</th><th>% of Supply</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>` : '<div class="empty-state">No fomo holders found yet</div>'}
-    </div>`;
+      <div class="chart-panel">
+        <div class="panel-head"><div class="panel-title">fomo % over time</div></div>
+        <div class="panel-body">${chartSVG}</div>
+      </div>
+    </div>
+
+    <div class="holders-panel">
+      <div class="panel-head">
+        <div class="panel-title">Top fomo holders</div>
+        <div class="panel-title" style="color:var(--accent)">${holders} holders</div>
+      </div>
+      ${holdersList.length === 0 ? '<div class="empty-grid"><div class="empty-title">No fomo holders detected</div><div class="empty-sub">Either scan is in progress, or no top-100 holders have traded this token through fomo yet.</div></div>' : `
+      <table>
+        <thead><tr><th>#</th><th>Wallet</th><th>Amount</th><th>% of supply</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`}
+    </div>
+  `;
 }
 
-function renderSparklineHTML(history) {
-  if (history.length < 2) return '<div class="no-data">Collecting data points...</div>';
-  const values = history.map(h => h.fomo_pct);
-  const labels = history.map(h => h.time.split(' ')[1]);
-  const min = Math.min(...values) - 0.5;
-  const max = Math.max(...values) + 0.5;
-  const w = 500, h = 110;
-  const pad = {top:10, bottom:22, left:8, right:8};
-  const xStep = (w - pad.left - pad.right) / (values.length - 1);
-  const yScale = (h - pad.top - pad.bottom) / (max - min || 1);
-  const pts = values.map((v, i) => ({
-    x: pad.left + i * xStep,
-    y: h - pad.bottom - (v - min) * yScale
-  }));
-  const line = pts.map((p, i) => `${i===0?'M':'L'}${p.x},${p.y}`).join(' ');
-  const area = line + ` L${pts[pts.length-1].x},${h-pad.bottom} L${pts[0].x},${h-pad.bottom} Z`;
-  const last = pts[pts.length - 1];
-  const lastVal = values[values.length - 1];
-  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:100%">
-    <defs>
-      <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.22"/>
-        <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
-      </linearGradient>
-    </defs>
-    <path d="${area}" fill="url(#sg)"/>
-    <path d="${line}" fill="none" stroke="#00e5ff" stroke-width="2"
-      style="filter:drop-shadow(0 0 4px rgba(0,229,255,0.6))"/>
-    <circle cx="${last.x}" cy="${last.y}" r="4" fill="#00e5ff"
-      style="filter:drop-shadow(0 0 6px rgba(0,229,255,0.8))"/>
-    <text x="${last.x+8}" y="${last.y+4}" fill="#00e5ff" font-family="Space Mono" font-size="10">${lastVal.toFixed(2)}%</text>
-    <text x="${pad.left}" y="${h-4}" fill="#5a7a96" font-family="Space Mono" font-size="9">${labels[0]}</text>
-    <text x="${w-pad.right}" y="${h-4}" text-anchor="end" fill="#5a7a96" font-family="Space Mono" font-size="9">${labels[labels.length-1]}</text>
-  </svg>`;
-}
+async function pollData() {
+  try {
+    const [tokens, labels, cache] = await Promise.all([
+      apiFetch('/api/tokens'),
+      apiFetch('/api/labels'),
+      apiFetch('/api/cache/stats'),
+    ]);
+    tokenData = tokens || {};
+    allLabels = labels || {};
+    const cs = document.getElementById('cache-stat');
+    if (cs) cs.innerHTML = `Cache: <b>${cache.fomo_wallets || 0}</b> fomo · <b>${cache.labeled_wallets || 0}</b> labeled`;
 
-// ── Misc ───────────────────────────────────────────────────
+    const mints = Object.keys(tokenData);
+    if (mints.length === 0) {
+      document.getElementById('grid').innerHTML = `
+        <div class="card-add" onclick="document.getElementById('mint-input').focus()" style="grid-column: 1/-1; max-width:420px; margin:0 auto;">
+          <div class="card-add-icon">+</div>
+          <div class="card-add-text">Add your first token</div>
+        </div>`;
+    } else {
+      renderGrid();
+    }
 
-function checkEmpty() {
-  const hasTabs = Object.keys(tokenData).length > 0;
-  document.getElementById('empty-content').style.display = hasTabs ? 'none' : 'block';
+    if (currentDetail && tokenData[currentDetail]) {
+      renderDetail(currentDetail);
+    } else if (currentDetail) {
+      closeDetail();
+    }
+  } catch(e) {
+    console.error('Poll error', e);
+  }
 }
 
 function showToast(msg, type='') {
-  const old = document.querySelector('.toast');
-  if (old) old.remove();
   const t = document.createElement('div');
-  t.className = `toast ${type}`;
+  t.className = 'toast ' + type;
   t.textContent = msg;
   document.body.appendChild(t);
-  setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(), 300); }, 3000);
+  setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-// Enter key to add token
-document.getElementById('mint-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') addToken();
-});
-
-// Init + polling
 pollData();
 setInterval(pollData, 8000);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('label-modal').style.display === 'flex') {
+      document.getElementById('label-modal').style.display = 'none';
+    } else if (currentDetail) {
+      closeDetail();
+    }
+  }
+});
 </script>
 </body>
 </html>
