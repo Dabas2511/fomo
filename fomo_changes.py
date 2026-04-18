@@ -128,6 +128,65 @@ def compute_changes(mint: str, hours_ago: float, labels: dict = None) -> dict:
     }
 
 
+def compute_activity(mint: str, limit: int = 50, labels: dict = None) -> dict:
+    """
+    Walks through recent snapshots and extracts individual wallet movements
+    (buys/sells/entries/exits) as a chronological activity feed.
+
+    Each snapshot is compared to the one immediately before it,
+    producing one or more activity events.
+    """
+    if labels is None:
+        labels = {}
+
+    snaps = load_snapshots(mint)
+    if len(snaps) < 2:
+        return {"available": False, "events": []}
+
+    events = []
+    # walk backwards from newest to oldest so events are chronologically recent first
+    for i in range(len(snaps) - 1, 0, -1):
+        curr = snaps[i]
+        prev = snaps[i - 1]
+        cur_holders = curr.get("holders", {})
+        past_holders = prev.get("holders", {})
+        ts = curr.get("ts", 0)
+        time_str = curr.get("time", "")
+
+        all_wallets = set(cur_holders.keys()) | set(past_holders.keys())
+        for w in all_wallets:
+            cur_amt = cur_holders.get(w, 0)
+            past_amt = past_holders.get(w, 0)
+            delta = cur_amt - past_amt
+
+            if past_amt == 0 and cur_amt > 0:
+                kind = "entry"
+            elif cur_amt == 0 and past_amt > 0:
+                kind = "exit"
+            elif abs(delta) > 0.01:
+                kind = "buy" if delta > 0 else "sell"
+            else:
+                continue
+
+            events.append({
+                "ts": ts,
+                "time": time_str,
+                "kind": kind,
+                "wallet": w,
+                "label": labels.get(w, ""),
+                "delta": round(delta, 2),
+                "before": round(past_amt, 2),
+                "after": round(cur_amt, 2),
+            })
+
+        if len(events) >= limit:
+            break
+
+    # Sort newest first and cap
+    events.sort(key=lambda e: e["ts"], reverse=True)
+    return {"available": True, "events": events[:limit]}
+
+
 def handle_changes_request(path: str, labels: dict) -> dict:
     """
     Called by the main server's HTTP handler.
@@ -144,3 +203,18 @@ def handle_changes_request(path: str, labels: dict) -> dict:
                 except Exception:
                     pass
     return compute_changes(mint, hours, labels)
+
+
+def handle_activity_request(path: str, labels: dict) -> dict:
+    """Expects path like: /api/activity/{mint}?limit=50"""
+    parts = path.split("/api/activity/")[1].split("?")
+    mint = parts[0]
+    limit = 50
+    if len(parts) > 1:
+        for kv in parts[1].split("&"):
+            if kv.startswith("limit="):
+                try:
+                    limit = int(kv.split("=")[1])
+                except Exception:
+                    pass
+    return compute_activity(mint, limit, labels)
