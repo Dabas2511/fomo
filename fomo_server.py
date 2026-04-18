@@ -28,6 +28,15 @@ except Exception:
     CHANGES_ENABLED = False
     print("  ⚠️  fomo_changes.py not available — /api/changes and /api/activity endpoints disabled")
 
+# Optional live stream module — server still works if missing
+try:
+    from fomo_live_stream import start_stream, stop_stream, get_live_activity
+    LIVE_STREAM_ENABLED = True
+    print("  ✅ Live transaction monitoring enabled")
+except Exception as e:
+    LIVE_STREAM_ENABLED = False
+    print(f"  ⚠️  fomo_live_stream.py not available — live feed disabled: {e}")
+
 # India Standard Time
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -429,6 +438,13 @@ def add_token(mint: str):
     toks[mint] = mint[:8]+"..."
     save_tokens(toks)
     threading.Thread(target=token_loop, args=(mint,), daemon=True).start()
+    
+    # Start live transaction stream
+    if LIVE_STREAM_ENABLED:
+        with global_lock:
+            fomo_set = set(global_fomo.keys())
+        start_stream(mint, HELIUS_API_KEY, fomo_set)
+    
     return True, "Token added"
 
 def remove_token(mint: str):
@@ -439,6 +455,11 @@ def remove_token(mint: str):
     toks = load_tokens()
     toks.pop(mint, None)
     save_tokens(toks)
+    
+    # Stop live stream
+    if LIVE_STREAM_ENABLED:
+        stop_stream(mint)
+    
     return True, "Token removed"
 
 # ── HTTP Server ───────────────────────────────
@@ -485,6 +506,19 @@ class Handler(BaseHTTPRequestHandler):
                 labels = dict(wallet_labels)
             try:
                 result = handle_activity_request(self.path, labels)
+                self.send_json(result)
+            except Exception as e:
+                self.send_json({"available": False, "error": str(e)}, 500)
+        elif LIVE_STREAM_ENABLED and self.path.startswith("/api/live-activity/"):
+            mint = self.path.split("/api/live-activity/")[1].split("?")[0]
+            with global_lock:
+                fomo_set = set(global_fomo.keys())
+                labels = dict(wallet_labels)
+            try:
+                result = get_live_activity(mint, fomo_set)
+                # Enrich with labels
+                for event in result.get("events", []):
+                    event["label"] = labels.get(event["wallet"], "")
                 self.send_json(result)
             except Exception as e:
                 self.send_json({"available": False, "error": str(e)}, 500)
