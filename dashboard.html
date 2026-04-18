@@ -772,6 +772,7 @@ function openDetail(mint) {
 }
 function closeDetail() {
   currentDetail = null;
+  stopActivityPoll();
   document.getElementById('detail-view').style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -957,13 +958,15 @@ function renderDetail(mint) {
     lastRenderedHTML = html;
   }
 
-  // Only re-load changes/activity if scan data updated
+  // Only re-load changes if scan data updated
   const updated = data.last_updated || '';
   if (updated !== lastDetailUpdate) {
     lastDetailUpdate = updated;
     loadChanges(mint, currentChangesWindow);
-    loadActivity(mint);
   }
+  
+  // Start live activity polling (always runs for real-time updates)
+  startActivityPoll(mint);
 }
 
 function timeAgo(ts) {
@@ -978,14 +981,8 @@ async function loadActivity(mint) {
   const list = document.getElementById('activity-list');
   if (!list) return;
 
-  // Don't show loading if we're just refreshing existing content
-  const hadContent = list.children.length > 0 && !list.querySelector('.activity-empty');
-  if (!hadContent) {
-    list.innerHTML = `<div class="activity-empty">LOADING…</div>`;
-  }
-
   try {
-    const data = await apiFetch(`/api/activity/${mint}?limit=60`);
+    const data = await apiFetch(`/api/live-activity/${mint}`);
     if (!data.available || !data.events || data.events.length === 0) {
       list.innerHTML = `<div class="activity-empty">NO ACTIVITY YET</div>`;
       return;
@@ -1002,13 +999,9 @@ async function loadActivity(mint) {
 
       let amountHtml = '';
       if (ev.kind === 'buy') {
-        amountHtml = `<span class="activity-amount positive">+${ev.delta.toLocaleString()}</span>`;
+        amountHtml = `<span class="activity-amount positive">+${ev.amount.toLocaleString()}</span>`;
       } else if (ev.kind === 'sell') {
-        amountHtml = `<span class="activity-amount negative">${ev.delta.toLocaleString()}</span>`;
-      } else if (ev.kind === 'entry') {
-        amountHtml = `<span class="activity-amount positive">+${ev.after.toLocaleString()}</span>`;
-      } else if (ev.kind === 'exit') {
-        amountHtml = `<span class="activity-amount negative">-${ev.before.toLocaleString()}</span>`;
+        amountHtml = `<span class="activity-amount negative">-${ev.amount.toLocaleString()}</span>`;
       }
 
       return `<div class="activity-event">
@@ -1023,12 +1016,25 @@ async function loadActivity(mint) {
       </div>`;
     }).join('');
 
-    // Only update if content actually changed to avoid flicker
-    if (list.innerHTML !== rows) {
-      list.innerHTML = rows;
-    }
+    list.innerHTML = rows;
   } catch(e) {
     list.innerHTML = `<div class="activity-empty" style="color:var(--danger)">ERROR</div>`;
+  }
+}
+
+// Auto-refresh activity every 3 seconds when detail view is open
+let activityInterval = null;
+
+function startActivityPoll(mint) {
+  stopActivityPoll();
+  loadActivity(mint);  // load immediately
+  activityInterval = setInterval(() => loadActivity(mint), 3000);
+}
+
+function stopActivityPoll() {
+  if (activityInterval) {
+    clearInterval(activityInterval);
+    activityInterval = null;
   }
 }
 
