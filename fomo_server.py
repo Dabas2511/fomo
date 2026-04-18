@@ -22,11 +22,11 @@ from datetime import datetime, timezone, timedelta
 
 # Optional changes module — server still works if missing
 try:
-    from fomo_changes import handle_changes_request
+    from fomo_changes import handle_changes_request, handle_activity_request
     CHANGES_ENABLED = True
 except Exception:
     CHANGES_ENABLED = False
-    print("  ⚠️  fomo_changes.py not available — /api/changes endpoint disabled")
+    print("  ⚠️  fomo_changes.py not available — /api/changes and /api/activity endpoints disabled")
 
 # India Standard Time
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -477,6 +477,14 @@ class Handler(BaseHTTPRequestHandler):
                 labels = dict(wallet_labels)
             try:
                 result = handle_changes_request(self.path, labels)
+                self.send_json(result)
+            except Exception as e:
+                self.send_json({"available": False, "error": str(e)}, 500)
+        elif CHANGES_ENABLED and self.path.startswith("/api/activity/"):
+            with global_lock:
+                labels = dict(wallet_labels)
+            try:
+                result = handle_activity_request(self.path, labels)
                 self.send_json(result)
             except Exception as e:
                 self.send_json({"available": False, "error": str(e)}, 500)
