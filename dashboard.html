@@ -227,7 +227,77 @@
   }
   @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
 
-  .detail-wrap { max-width: 1400px; margin: 0 auto; padding: 32px; }
+  .detail-wrap { max-width: 1600px; margin: 0 auto; padding: 32px; }
+
+  .detail-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) { .detail-layout { grid-template-columns: 1fr; } }
+
+  /* Activity sidebar */
+  .activity-panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    position: sticky; top: 96px;
+    max-height: calc(100vh - 120px); display: flex; flex-direction: column;
+  }
+  .activity-head {
+    padding: 16px 18px; border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .activity-pulse {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--success);
+    letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  .activity-pulse::before {
+    content: ''; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); box-shadow: 0 0 8px var(--success);
+    animation: pulse 1.5s ease infinite;
+  }
+  .activity-list { flex: 1; overflow-y: auto; }
+  .activity-list::-webkit-scrollbar { width: 6px; }
+  .activity-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 100px; }
+
+  .activity-event {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 11px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .activity-event:last-child { border-bottom: none; }
+  .activity-event-head {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .activity-kind {
+    font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+    font-weight: 600; padding: 2px 6px; border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .activity-kind.buy    { background: rgba(74,222,128,0.15); color: var(--success); }
+  .activity-kind.sell   { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .activity-kind.entry  { background: var(--accent-dim); color: var(--accent); }
+  .activity-kind.exit   { background: rgba(251,191,36,0.15); color: var(--warn); }
+  .activity-time { color: var(--text-dim); font-size: 9.5px; margin-left: auto; flex-shrink: 0; }
+  .activity-wallet {
+    color: var(--text-mid); font-size: 11px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+  }
+  .activity-wallet .wallet-link { padding: 0; font-size: 11px; }
+  .activity-amount { color: var(--text); font-weight: 500; }
+  .activity-amount.positive { color: var(--success); }
+  .activity-amount.negative { color: var(--danger); }
+
+  .activity-empty {
+    padding: 40px 20px; text-align: center; color: var(--text-dim);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 1px;
+  }
+
+  /* History chart */
+  .history-chart { height: 200px; }
 
   .detail-head {
     display:flex; justify-content:space-between; align-items:center;
@@ -330,8 +400,6 @@
   .pct-bar-wrap { display:flex; align-items:center; gap: 10px; justify-content: flex-end; }
   .pct-bar { width: 80px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .pct-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; box-shadow: 0 0 8px var(--accent-glow); }
-
-  .history-chart { height: 200px; }
 
   /* Changes panel */
   .changes-panel {
@@ -789,6 +857,9 @@ function renderDetail(mint) {
       </div>
     </div>
 
+    <div class="detail-layout">
+      <div class="detail-main">
+
     <div class="metrics-row">
       <div class="metric-card">
         <div class="metric-label">fomo % of supply</div>
@@ -863,6 +934,19 @@ function renderDetail(mint) {
         <tbody>${rows}</tbody>
       </table>`}
     </div>
+
+      </div>
+
+      <div class="activity-panel">
+        <div class="activity-head">
+          <div class="panel-title">Activity</div>
+          <span class="activity-pulse">Live</span>
+        </div>
+        <div class="activity-list" id="activity-list">
+          <div class="activity-empty">LOADING…</div>
+        </div>
+      </div>
+    </div>
   `;
 
   // Only re-load changes if scan data updated or user changed window
@@ -870,6 +954,64 @@ function renderDetail(mint) {
   if (updated !== lastDetailUpdate) {
     lastDetailUpdate = updated;
     loadChanges(mint, currentChangesWindow);
+    loadActivity(mint);
+  }
+}
+
+function timeAgo(ts) {
+  const secs = Math.floor(Date.now()/1000 - ts);
+  if (secs < 60) return `${secs}s ago`;
+  if (secs < 3600) return `${Math.floor(secs/60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs/3600)}h ago`;
+  return `${Math.floor(secs/86400)}d ago`;
+}
+
+async function loadActivity(mint) {
+  const list = document.getElementById('activity-list');
+  if (!list) return;
+
+  try {
+    const data = await apiFetch(`/api/activity/${mint}?limit=60`);
+    if (!data.available || !data.events || data.events.length === 0) {
+      list.innerHTML = `<div class="activity-empty">NO ACTIVITY YET</div>`;
+      return;
+    }
+
+    const rows = data.events.map(ev => {
+      const s = shortMid(ev.wallet);
+      const label = ev.label || '';
+      const walletDisplay = label
+        ? `<span class="wallet-label-text">${label}</span><span class="wallet-short-dim">${s}</span>`
+        : s;
+      const walletEsc = ev.wallet.replace(/'/g,"\\'");
+      const labelEsc = label.replace(/'/g,"\\'");
+
+      let amountHtml = '';
+      if (ev.kind === 'buy') {
+        amountHtml = `<span class="activity-amount positive">+${ev.delta.toLocaleString()}</span>`;
+      } else if (ev.kind === 'sell') {
+        amountHtml = `<span class="activity-amount negative">${ev.delta.toLocaleString()}</span>`;
+      } else if (ev.kind === 'entry') {
+        amountHtml = `<span class="activity-amount positive">+${ev.after.toLocaleString()}</span>`;
+      } else if (ev.kind === 'exit') {
+        amountHtml = `<span class="activity-amount negative">-${ev.before.toLocaleString()}</span>`;
+      }
+
+      return `<div class="activity-event">
+        <div class="activity-event-head">
+          <span class="activity-kind ${ev.kind}">${ev.kind}</span>
+          <span class="activity-time">${timeAgo(ev.ts)}</span>
+        </div>
+        <div class="activity-wallet">
+          <span class="wallet-link" onclick="openLabelModal('${walletEsc}','${labelEsc}')">${walletDisplay}</span>
+        </div>
+        <div>${amountHtml}</div>
+      </div>`;
+    }).join('');
+
+    list.innerHTML = rows;
+  } catch(e) {
+    list.innerHTML = `<div class="activity-empty" style="color:var(--danger)">ERROR</div>`;
   }
 }
 
